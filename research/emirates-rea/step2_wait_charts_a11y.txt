@@ -1,0 +1,28 @@
+- document:
+  - banner:
+    - img "Emirates Logo"
+  - main:
+    - text: We’re Sorry I
+    - paragraph: The page you’re trying to access is restricted.
+    - paragraph: "Reference number: 18.57882c31.1793092286.11506f1d."
+    - paragraph:
+      - text: Please go to
+      - link "emirates.com":
+        - /url: https://www.emirates.com
+      - text: if you’d like to search, book or manage flights.
+    - list:
+      - listitem:
+        - link "Search for flights":
+          - /url: https://fly2.emirates.com/CAB/IBE.aspx?j=f
+      - listitem:
+        - link "Manage your booking":
+          - /url: https://fly2.emirates.com/CAB/MYB.aspx?j=f
+      - listitem:
+        - link "Contact us":
+          - /url: https://mobile.emirates.com/english/help/offices/local_emirates_offices.xhtml
+      - listitem:
+        - link "Twitter":
+          - /url: https://twitter.com/Emirates
+  - contentinfo:
+    - paragraph: © 2026 The Emirates Group. All rights reserved.
+    - img "Emirates Logo"

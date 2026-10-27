@@ -144,37 +144,37 @@ export const ManageBooking: React.FC<ManageBookingProps> = ({ onReservationCance
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-300">
       
       {/* Manage Header Card */}
-      <div className="bg-[#10243A] text-white rounded-3xl p-8 shadow-xl border border-navy-800">
-        <span className="text-xs font-mono font-bold tracking-widest text-[#C7A66A] uppercase flex items-center gap-1.5">
-          <Ticket className="w-3.5 h-3.5" /> AeroSeat Manage Booking Portal
+      <div className="bg-slate-navy text-white rounded-3xl p-8 shadow-xl border border-white/10">
+        <span className="text-xs font-mono font-bold tracking-widest text-secondary-container uppercase flex items-center gap-1.5">
+          <Ticket className="w-3.5 h-3.5" /> X Airways Manage Booking Portal
         </span>
         <h1 className="text-3xl font-bold font-serif mt-1">Manage Your Reservation</h1>
-        <p className="text-sm text-slate-300 mt-2 max-w-2xl">
+        <p className="text-sm text-surface-container-highest/80 mt-2 max-w-2xl">
           Enter your 6-character booking reference (PNR) and passenger last name to view your itinerary, change your seat, download your boarding pass, or manage waitlists.
         </p>
 
         {/* Dual-Field Retrieval Form */}
         <form onSubmit={handleRetrieve} className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Booking Reference (PNR)</label>
+            <label className="block text-xs font-semibold text-surface-container-highest/80 mb-1">Booking Reference (PNR)</label>
             <input
               type="text"
               value={pnrInput}
               onChange={(e) => setPnrInput(e.target.value.toUpperCase())}
               placeholder="e.g. EK9X2B"
               maxLength={6}
-              className="w-full px-4 py-3 rounded-xl bg-navy-900 border border-navy-700 text-white font-mono text-base focus:outline-none focus:ring-2 focus:ring-[#C7A66A] uppercase placeholder:normal-case placeholder:text-slate-500"
+              className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest/10 border border-white/20 text-white font-mono text-base focus:outline-none focus:ring-2 focus:ring-secondary-container uppercase placeholder:normal-case placeholder:text-surface-container-highest/50"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">Passenger Last Name</label>
+            <label className="block text-xs font-semibold text-surface-container-highest/80 mb-1">Passenger Last Name</label>
             <input
               type="text"
               value={lastNameInput}
               onChange={(e) => setLastNameInput(e.target.value)}
               placeholder="e.g. Sterling"
-              className="w-full px-4 py-3 rounded-xl bg-navy-900 border border-navy-700 text-white text-base focus:outline-none focus:ring-2 focus:ring-[#C7A66A] placeholder:text-slate-500"
+              className="w-full px-4 py-3 rounded-xl bg-surface-container-lowest/10 border border-white/20 text-white text-base focus:outline-none focus:ring-2 focus:ring-secondary-container placeholder:text-surface-container-highest/50"
             />
           </div>
 
@@ -182,7 +182,7 @@ export const ManageBooking: React.FC<ManageBookingProps> = ({ onReservationCance
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-6 rounded-xl bg-[#C7A66A] hover:bg-[#d8b97c] text-[#10243A] font-bold text-sm tracking-wide uppercase transition-all shadow-md flex items-center justify-center space-x-2"
+              className="w-full py-3.5 px-6 rounded-xl bg-primary-container hover:bg-crimson-deep text-white font-bold text-sm tracking-wide uppercase transition-all shadow-md flex items-center justify-center space-x-2"
             >
               <Search className="w-4 h-4" />
               <span>{loading ? 'Searching BST...' : 'Retrieve Booking'}</span>
@@ -334,15 +334,15 @@ export const ManageBooking: React.FC<ManageBookingProps> = ({ onReservationCance
 
           </div>
 
-          {/* Emirates-Inspired Boarding Pass Presentation */}
-          <div className="p-6 bg-gradient-to-r from-slate-900 to-[#10243A] rounded-2xl text-white shadow-lg relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-slate-700/80">
+          {/* Boarding Pass Presentation */}
+          <div className="p-6 bg-gradient-to-r from-slate-navy to-tertiary-container rounded-2xl text-white shadow-lg relative overflow-hidden border border-white/10">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-white/15">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl bg-[#C7A66A] text-[#10243A] flex items-center justify-center font-bold font-serif text-lg">
-                  EK
+                <div className="w-10 h-10 rounded-xl bg-primary-container text-white flex items-center justify-center font-bold font-serif text-lg">
+                  XA
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono tracking-widest text-[#C7A66A] uppercase">AeroSeat Boarding Pass</span>
+                  <span className="text-[10px] font-mono tracking-widest text-secondary-container uppercase">X Airways Boarding Pass</span>
                   <div className="text-lg font-bold">{reservation.passenger_name}</div>
                 </div>
               </div>

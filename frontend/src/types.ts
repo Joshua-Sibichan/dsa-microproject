@@ -55,6 +55,13 @@ export interface PassengerBookingItem {
   name: string;
   email: string;
   seat: Seat | null;
+  type?: 'adult' | 'child' | 'infant';
+  title?: string;
+  firstName?: string;
+  lastName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  frequentFlyer?: string;
 }
 
 export interface Reservation {

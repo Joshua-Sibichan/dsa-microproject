@@ -12,7 +12,7 @@ This document records a public, read-only investigation of the Emirates website 
 - **Interactive Seating Charts**: `https://www.emirates.com/english/experience/seating-charts/`
 - **Manage Booking Portal**: `https://www.emirates.com/english/manage-booking/`
 
-*Investigation tooling and boundary*: REA 6.7.0 was verified locally (`rea doctor --client codex --json`): its Codex registration and local launcher are aligned, but REA MCP browser tools were not attached to this agent session. The public Emirates landing page was therefore inspected read-only through the available web browser tool. It exposes Book, Manage, Experience, Where We Fly, Loyalty, and Help navigation; its accessible flight form lists origin, destination, departure/return dates, passenger categories (with a stated maximum of nine), cabin classes, advanced search, and a Search flights action. The public navigation also exposes Seat selection, Seating charts, Manage your booking, Change your booking, and Cancel your booking. No login, booking, form submission, payment, or private API was used.
+*Investigation tooling and boundary (updated on `feature/emirates-seat-reservation-clone`)*: REA `capture_browser_scenario` against `emirates.com` was blocked by an access-restricted WAF page (evidence IDs and screenshots in `research/OBSERVED_WORKFLOW.md` / `research/emirates-rea/`). Public seat-selection, seating-charts, book, FAQ, and manage-booking documentation were fetched for workflow and seat-category behaviour. No login, live booking submission, payment, or private API was used. The booking UI on this branch is an original multi-step recreation of that documented workflow.
 
 ---
 

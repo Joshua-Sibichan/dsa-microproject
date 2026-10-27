@@ -1,5 +1,5 @@
 """
-AeroSeat Intelligence — FastAPI Application Entry Point
+X Airways Intelligence — FastAPI Application Entry Point
 Exposes core reservation workflows, seat intelligence, 2D matrix allocation,
 and real-time DSA hub instrumentation.
 """
@@ -146,7 +146,7 @@ async def lifespan(app: FastAPI):
     # Shutdown
 
 app = FastAPI(
-    title="AeroSeat Intelligence API",
+    title="X Airways Intelligence API",
     description="Full-stack airline seat-reservation and Data Structures & Algorithms demonstration engine.",
     version="1.1.0",
     lifespan=lifespan
@@ -348,7 +348,19 @@ def create_reservation(req: ReservationCreateRequest):
 
     prefs_str = json.dumps(req.preferences.model_dump()) if req.preferences else "{}"
 
-    cursor.execute("UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ?", (req.flight_id, req.seat_number))
+    # Atomic claim: only one concurrent session can flip AVAILABLE → RESERVED
+    cursor.execute("BEGIN IMMEDIATE")
+    cursor.execute(
+        "UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ? AND status = 'AVAILABLE'",
+        (req.flight_id, req.seat_number),
+    )
+    if cursor.rowcount != 1:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Seat {req.seat_number} is already reserved. Please select another seat or join the waitlist.",
+        )
     cursor.execute("""
         INSERT INTO reservations (pnr, flight_id, seat_number, passenger_name, passenger_email, preferences_json, status)
         VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMED')
@@ -402,15 +414,18 @@ def create_batch_reservations(req: MultiPassengerReservationRequest):
 
     conn = get_db_connection()
     cursor = conn.cursor()
+    cursor.execute("BEGIN IMMEDIATE")
 
-    # Verify all seats are available
+    # Verify all seats are available under a write lock
     for item in req.items:
         cursor.execute("SELECT * FROM seats WHERE flight_id = ? AND seat_number = ?", (req.flight_id, item.seat_number))
         st = cursor.fetchone()
         if not st:
+            conn.rollback()
             conn.close()
             raise HTTPException(status_code=404, detail=f"Seat {item.seat_number} not found on flight {req.flight_id}")
         if st["status"] != "AVAILABLE":
+            conn.rollback()
             conn.close()
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -426,7 +441,17 @@ def create_batch_reservations(req: MultiPassengerReservationRequest):
             pnr = generate_pnr()
 
         prefs_str = json.dumps(item.preferences.model_dump()) if item.preferences else "{}"
-        cursor.execute("UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ?", (req.flight_id, item.seat_number))
+        cursor.execute(
+            "UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ? AND status = 'AVAILABLE'",
+            (req.flight_id, item.seat_number),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            conn.close()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Seat {item.seat_number} was claimed by another session.",
+            )
         cursor.execute("""
             INSERT INTO reservations (pnr, flight_id, seat_number, passenger_name, passenger_email, preferences_json, status)
             VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMED')

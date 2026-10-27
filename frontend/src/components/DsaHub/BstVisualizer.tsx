@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchBSTSummary, operateBST } from '../../api';
 import { BSTSummary, BSTNodeDict } from '../../types';
-import { GitFork, Search, Plus, Trash2, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Search, Plus, Trash2 } from 'lucide-react';
 
 export const BstVisualizer: React.FC = () => {
   const [bstData, setBstData] = useState<BSTSummary | null>(null);
@@ -90,29 +90,30 @@ export const BstVisualizer: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
       {/* Header Card */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/90">
-        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-100 gap-4">
+      <div className="bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-sm border border-border-subtle">
+        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-border-subtle gap-4">
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-purple-100 text-purple-800 border border-purple-300">
-                CO4 — BINARY SEARCH TREE
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-secondary-container/20 text-secondary border border-secondary-container/40 uppercase tracking-wider">
+                CO4 — Binary Search Tree
               </span>
-              <span className="text-xs text-slate-500 font-mono">Avg Time: O(log N) • Worst: O(N)</span>
+              <span className="text-xs text-charcoal-muted font-mono">Avg Time: O(log N) • Worst: O(N)</span>
             </div>
-            <h2 className="text-2xl font-bold text-[#10243A] mt-1">Booking Reference Index — BST</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h2 className="font-serif text-2xl font-bold text-slate-navy mt-1">
+              Booking Reference Index — BST
+            </h2>
+            <p className="text-xs text-charcoal-muted mt-0.5 max-w-2xl">
               Indexes active flight reservations by 6-character PNR. Demonstrates binary search branching, inorder sorting, and successor replacement.
             </p>
           </div>
 
-          <div className="flex items-center space-x-4 text-xs font-mono">
-            <div className="bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-              Nodes: <span className="font-bold text-[#10243A]">{bstData?.size || 0}</span>
+          <div className="flex items-center gap-3 text-xs font-mono">
+            <div className="bg-surface-container-low px-3.5 py-1.5 rounded-xl border border-border-subtle">
+              Nodes: <strong className="text-slate-navy font-bold">{bstData?.size || 0}</strong>
             </div>
-            <div className="bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200">
-              Tree Height: <span className="font-bold text-[#10243A]">{bstData?.height || 0}</span>
+            <div className="bg-surface-container-low px-3.5 py-1.5 rounded-xl border border-border-subtle">
+              Tree Height: <strong className="text-slate-navy font-bold">{bstData?.height || 0}</strong>
             </div>
           </div>
         </div>
@@ -125,13 +126,13 @@ export const BstVisualizer: React.FC = () => {
             onChange={(e) => setPnrInput(e.target.value.toUpperCase())}
             placeholder="PNR Code (e.g. EK9X2B)"
             maxLength={6}
-            className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 font-mono uppercase focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+            className="flex-1 w-full sm:w-auto px-4 py-2.5 rounded-xl border border-border-subtle text-xs text-slate-navy bg-surface-container-low font-mono uppercase focus:outline-none focus:border-slate-navy font-bold"
           />
           <button
             type="button"
             onClick={handleSearch}
             disabled={loading || !pnrInput.trim()}
-            className="px-4 py-2.5 bg-[#2563EB] hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-sm transition-all"
+            className="w-full sm:w-auto px-5 py-2.5 bg-primary-container hover:bg-crimson-deep disabled:bg-surface-container text-white disabled:text-charcoal-muted rounded-xl text-xs font-serif font-bold flex items-center justify-center gap-1.5 shadow transition-all active:scale-95"
           >
             <Search className="w-3.5 h-3.5" />
             <span>Search Path</span>
@@ -140,16 +141,16 @@ export const BstVisualizer: React.FC = () => {
             type="button"
             onClick={handleInsert}
             disabled={loading || !pnrInput.trim()}
-            className="px-4 py-2.5 bg-[#10243A] hover:bg-[#1A3654] disabled:bg-slate-300 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-sm transition-all"
+            className="w-full sm:w-auto px-5 py-2.5 bg-slate-navy hover:bg-slate-900 disabled:bg-surface-container text-white disabled:text-charcoal-muted rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow transition-all active:scale-95"
           >
-            <Plus className="w-3.5 h-3.5 text-[#C7A66A]" />
+            <Plus className="w-3.5 h-3.5 text-secondary-container" />
             <span>Insert</span>
           </button>
           <button
             type="button"
             onClick={handleDelete}
             disabled={loading || !pnrInput.trim()}
-            className="px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-sm transition-all"
+            className="w-full sm:w-auto px-5 py-2.5 bg-surface-container-low hover:bg-crimson-light text-primary border border-primary/30 disabled:bg-surface-container rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Delete</span>
@@ -157,23 +158,23 @@ export const BstVisualizer: React.FC = () => {
         </div>
 
         {feedback && (
-          <div className="mt-3 text-xs text-slate-700 bg-slate-100 p-2.5 rounded-xl border border-slate-200 font-mono">
+          <div className="mt-3 text-xs text-slate-navy bg-gold-light/40 p-3 rounded-xl border border-gold-metallic/30 font-mono">
             {feedback}
           </div>
         )}
       </div>
 
       {/* Visual Tree Rendering Canvas */}
-      <div className="bg-[#10243A] text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-navy-800 space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-navy-800">
-          <div className="flex items-center space-x-2">
-            <GitFork className="w-5 h-5 text-[#C7A66A]" />
-            <h3 className="font-bold text-base text-white">Hierarchical Tree Structure</h3>
+      <div className="bg-slate-navy text-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-xl border border-white/10 space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-secondary-container text-[20px]">account_tree</span>
+            <h3 className="font-serif font-bold text-base text-white">Hierarchical Tree Structure</h3>
           </div>
           {searchedPath.length > 0 && (
-            <div className="text-xs font-mono text-emerald-400 flex items-center space-x-1">
+            <div className="text-xs font-mono text-secondary-container flex items-center gap-1.5">
               <span>Path:</span>
-              <span className="font-bold">{searchedPath.join(' → ')}</span>
+              <strong className="font-bold">{searchedPath.join(' → ')}</strong>
             </div>
           )}
         </div>
@@ -185,7 +186,7 @@ export const BstVisualizer: React.FC = () => {
               {renderTreeNode(bstData.tree_hierarchy, searchedPath)}
             </div>
           ) : (
-            <div className="py-16 text-center text-slate-500 text-xs">
+            <div className="py-16 text-center text-surface-container-highest/60 text-xs">
               BST is currently empty.
             </div>
           )}
@@ -193,31 +194,34 @@ export const BstVisualizer: React.FC = () => {
       </div>
 
       {/* Standard Traversals Module */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/90 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-          <h3 className="font-bold text-base text-[#10243A]">BST Tree Traversals (CO4)</h3>
-          
-          <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-semibold space-x-1">
+      <div className="bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-sm border border-border-subtle space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-border-subtle">
+          <h3 className="font-serif font-bold text-base text-slate-navy">BST Tree Traversals (CO4)</h3>
+
+          <div className="flex bg-surface-container-low p-1 rounded-xl text-xs font-semibold gap-1">
             <button
+              type="button"
               onClick={() => setActiveTraversal('inorder')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeTraversal === 'inorder' ? 'bg-white text-[#10243A] shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                activeTraversal === 'inorder' ? 'bg-white text-slate-navy shadow-sm font-bold' : 'text-charcoal-muted hover:text-slate-navy'
               }`}
             >
               Inorder (L-Root-R)
             </button>
             <button
+              type="button"
               onClick={() => setActiveTraversal('preorder')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeTraversal === 'preorder' ? 'bg-white text-[#10243A] shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                activeTraversal === 'preorder' ? 'bg-white text-slate-navy shadow-sm font-bold' : 'text-charcoal-muted hover:text-slate-navy'
               }`}
             >
               Preorder (Root-L-R)
             </button>
             <button
+              type="button"
               onClick={() => setActiveTraversal('postorder')}
               className={`px-3 py-1.5 rounded-lg transition-all ${
-                activeTraversal === 'postorder' ? 'bg-white text-[#10243A] shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                activeTraversal === 'postorder' ? 'bg-white text-slate-navy shadow-sm font-bold' : 'text-charcoal-muted hover:text-slate-navy'
               }`}
             >
               Postorder (L-R-Root)
@@ -225,8 +229,8 @@ export const BstVisualizer: React.FC = () => {
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 font-mono text-xs">
-          <div className="text-slate-500 text-[11px] mb-2 font-sans font-medium">
+        <div className="p-4 rounded-2xl bg-surface-container-low border border-border-subtle font-mono text-xs">
+          <div className="text-charcoal-muted text-[11px] mb-2 font-sans font-medium">
             {activeTraversal === 'inorder' && 'Produces strictly sorted alphabetical order of all booking references:'}
             {activeTraversal === 'preorder' && 'Root visited first; ideal for tree cloning and network serialization:'}
             {activeTraversal === 'postorder' && 'Children visited first; ideal for bottom-up node deallocation:'}
@@ -236,7 +240,7 @@ export const BstVisualizer: React.FC = () => {
             {bstData && bstData[`${activeTraversal}_traversal`].map((item, idx) => (
               <span
                 key={idx}
-                className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[#10243A] font-bold shadow-2xs"
+                className="px-2.5 py-1 rounded-lg bg-white border border-border-subtle text-slate-navy font-bold shadow-sm"
               >
                 {item.key}
               </span>
@@ -244,7 +248,6 @@ export const BstVisualizer: React.FC = () => {
           </div>
         </div>
       </div>
-
     </div>
   );
 
@@ -258,12 +261,12 @@ export const BstVisualizer: React.FC = () => {
       <div className="flex flex-col items-center mx-2 my-1">
         {/* Node Circle */}
         <div
-          className={`w-14 h-14 rounded-2xl font-mono text-xs font-bold flex flex-col items-center justify-center transition-all border-2 shadow-md ${
+          className={`w-14 h-14 rounded-2xl font-mono text-xs font-bold flex flex-col items-center justify-center transition-all border shadow-md ${
             isTarget
-              ? 'bg-emerald-500 border-emerald-300 text-slate-950 scale-110 ring-4 ring-emerald-400/40'
+              ? 'bg-primary-container border-white text-white scale-110 ring-4 ring-primary/40'
               : isInPath
-              ? 'bg-[#C7A66A] border-[#d8b97c] text-slate-950 ring-2 ring-[#C7A66A]/50'
-              : 'bg-navy-900 border-navy-700 text-white'
+                ? 'bg-secondary-container border-gold-metallic text-slate-navy ring-2 ring-gold-metallic/50'
+                : 'bg-surface-container-lowest/10 border-white/20 text-white'
           }`}
         >
           <span className="leading-tight">{node.key}</span>
@@ -272,18 +275,18 @@ export const BstVisualizer: React.FC = () => {
 
         {/* Children Branch */}
         {(node.left || node.right) && (
-          <div className="flex items-start justify-center mt-3 pt-3 border-t border-slate-600 space-x-6 relative">
+          <div className="flex items-start justify-center mt-3 pt-3 border-t border-white/20 space-x-6 relative">
             <div className="flex flex-col items-center">
-              <span className="text-[9px] font-mono text-slate-400 mb-1">L</span>
+              <span className="text-[9px] font-mono text-surface-container-highest/60 mb-1">L</span>
               {node.left ? renderTreeNode(node.left, path) : (
-                <div className="w-8 h-8 rounded-lg border border-dashed border-slate-700 flex items-center justify-center text-[10px] text-slate-600">∅</div>
+                <div className="w-8 h-8 rounded-lg border border-dashed border-white/20 flex items-center justify-center text-[10px] text-surface-container-highest/40">∅</div>
               )}
             </div>
 
             <div className="flex flex-col items-center">
-              <span className="text-[9px] font-mono text-slate-400 mb-1">R</span>
+              <span className="text-[9px] font-mono text-surface-container-highest/60 mb-1">R</span>
               {node.right ? renderTreeNode(node.right, path) : (
-                <div className="w-8 h-8 rounded-lg border border-dashed border-slate-700 flex items-center justify-center text-[10px] text-slate-600">∅</div>
+                <div className="w-8 h-8 rounded-lg border border-dashed border-white/20 flex items-center justify-center text-[10px] text-surface-container-highest/40">∅</div>
               )}
             </div>
           </div>

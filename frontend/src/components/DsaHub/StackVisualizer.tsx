@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { fetchUndoHistory, triggerUndo } from '../../api';
 import { UndoAction } from '../../types';
-import { RotateCcw, Layers, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { RotateCcw, Layers } from 'lucide-react';
 
 export const StackVisualizer: React.FC = () => {
   const [history, setHistory] = useState<{
@@ -42,37 +42,39 @@ export const StackVisualizer: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      
       {/* Overview Header */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/90">
-        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-100 gap-4">
+      <div className="bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-sm border border-border-subtle">
+        <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-border-subtle gap-4">
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                CO1 — STACK IMPLEMENTATION
+            <div className="flex items-center gap-2">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-secondary-container/20 text-secondary border border-secondary-container/40 uppercase tracking-wider">
+                CO1 — Stack Implementation
               </span>
-              <span className="text-xs text-slate-500 font-mono">Time: O(1) Push / Pop</span>
+              <span className="text-xs text-charcoal-muted font-mono">Time: O(1) Push / Pop</span>
             </div>
-            <h2 className="text-2xl font-bold text-[#10243A] mt-1">Reversible Operations — LIFO Undo Stack</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Tracks reversible reservation state changes. Pops topmost action to safely revert database & BST state without corruption.
+            <h2 className="font-serif text-2xl font-bold text-slate-navy mt-1">
+              Reversible Operations — LIFO Undo Stack
+            </h2>
+            <p className="text-xs text-charcoal-muted mt-0.5 max-w-2xl">
+              Tracks reversible reservation state changes. Pops topmost action to safely revert database &amp; BST state without corruption.
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3">
             <button
+              type="button"
               onClick={handleUndo}
               disabled={loading || !history || history.current_size === 0}
-              className="px-5 py-2.5 bg-[#C7A66A] hover:bg-[#d8b97c] disabled:bg-slate-200 text-[#10243A] disabled:text-slate-400 text-xs font-bold uppercase rounded-xl transition-all shadow-md flex items-center space-x-2"
+              className="px-5 py-2.5 bg-primary-container hover:bg-crimson-deep disabled:bg-surface-container text-white disabled:text-charcoal-muted text-xs font-serif font-bold uppercase rounded-xl transition-all shadow-md flex items-center gap-2 shrink-0"
             >
-              <RotateCcw className="w-4 h-4" />
-              <span>Pop & Undo (Top of Stack)</span>
+              <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>Pop &amp; Undo (Top of Stack)</span>
             </button>
           </div>
         </div>
 
         {message && (
-          <div className="mt-4 text-xs text-slate-700 bg-slate-100 p-3 rounded-xl border border-slate-200 font-mono">
+          <div className="mt-4 text-xs text-slate-navy bg-gold-light/40 p-3 rounded-xl border border-gold-metallic/30 font-mono">
             {message}
           </div>
         )}
@@ -80,16 +82,15 @@ export const StackVisualizer: React.FC = () => {
 
       {/* Visual Stack Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
         {/* Left 2 Cols: Stack Column Visualizer */}
-        <div className="lg:col-span-2 bg-[#10243A] text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-navy-800 space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-navy-800">
-            <div className="flex items-center space-x-2">
-              <Layers className="w-5 h-5 text-[#C7A66A]" />
-              <h3 className="font-bold text-base text-white">Stack Memory Layout (Top to Bottom)</h3>
+        <div className="lg:col-span-2 bg-slate-navy text-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-xl border border-white/10 space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-secondary-container text-[20px]">layers</span>
+              <h3 className="font-serif font-bold text-base text-white">Stack Memory Layout (Top to Bottom)</h3>
             </div>
-            <span className="font-mono text-xs text-slate-400">
-              Depth: <span className="text-[#C7A66A] font-bold">{history?.current_size || 0}</span> / {history?.max_capacity || 30}
+            <span className="font-mono text-xs text-surface-container-highest/70">
+              Depth: <strong className="text-secondary-container font-bold">{history?.current_size || 0}</strong> / {history?.max_capacity || 30}
             </span>
           </div>
 
@@ -101,72 +102,69 @@ export const StackVisualizer: React.FC = () => {
                 return (
                   <div
                     key={idx}
-                    className={`p-4 rounded-2xl border-2 transition-all relative ${
+                    className={`p-4 rounded-2xl border transition-all relative ${
                       isTop
-                        ? 'bg-amber-950/40 border-[#C7A66A] shadow-lg ring-2 ring-amber-500/20'
-                        : 'bg-navy-900 border-navy-700 opacity-80'
+                        ? 'bg-primary-container/20 border-primary shadow-lg ring-1 ring-primary'
+                        : 'bg-surface-container-lowest/5 border-white/10'
                     }`}
                   >
-                    <div className="flex items-center justify-between text-[10px] font-mono mb-1">
-                      <span className="text-slate-400">STACK DEPTH: #{idx}</span>
-                      {isTop && (
-                        <span className="px-2 py-0.5 bg-[#C7A66A] text-slate-950 font-bold rounded">
-                          TOP OF STACK (Next to Pop)
+                    {isTop && (
+                      <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-mono font-bold bg-primary-container text-white uppercase tracking-wider animate-pulse">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                        <span>Top of Stack</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-secondary-container/20 text-secondary-container border border-secondary-container/40">
+                        {action.action_type}
+                      </span>
+                      {action.pnr && (
+                        <span className="font-mono text-xs font-bold text-white bg-white/10 px-2 py-0.5 rounded">
+                          PNR: {action.pnr}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <div className="font-bold text-sm text-white">{action.action_type}</div>
-                      {action.pnr && (
-                        <span className="font-mono text-xs text-[#C7A66A] font-bold">PNR: {action.pnr}</span>
-                      )}
-                    </div>
+                    <p className="text-xs text-surface-container-highest font-medium">{action.description}</p>
 
-                    <p className="text-xs text-slate-300 mt-1">{action.description}</p>
-                    {action.seat_number && (
-                      <div className="text-[11px] font-mono text-slate-400 mt-2">
-                        Seat Affected: <span className="text-white font-bold">{action.seat_number}</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-3 text-[10px] text-surface-container-highest/60 font-mono mt-2 pt-2 border-t border-white/10">
+                      <span>Flight: {action.flight_id || 'N/A'}</span>
+                      {action.seat_number && <span>Seat: {action.seat_number}</span>}
+                      {action.old_seat && action.new_seat && (
+                        <span>Swap: {action.old_seat} → {action.new_seat}</span>
+                      )}
+                      <span>Depth #{history.current_size - idx}</span>
+                    </div>
                   </div>
                 );
               })}
             </div>
           ) : (
-            <div className="py-12 text-center text-slate-500 text-xs">
-              Undo stack is currently empty. Make or cancel a seat reservation to push reversible operations.
+            <div className="p-8 text-center text-surface-container-highest/60 text-xs border border-dashed border-white/20 rounded-2xl">
+              Stack is currently empty. Actions like reservations or seat swaps will push frames here.
             </div>
           )}
         </div>
 
-        {/* Right Col: Stack Guardrails & Academic Theory */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/90 space-y-4">
-          <div className="flex items-center space-x-2 text-[#10243A] font-bold">
-            <ShieldCheck className="w-5 h-5 text-emerald-600" />
-            <h3 className="text-base">Undo Rollback Invariants</h3>
-          </div>
-
-          <div className="space-y-3 text-xs text-slate-600">
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <strong className="text-slate-800 block mb-1">1. LIFO Discipline</strong>
-              Operations can only be reverted in the exact reverse chronological order in which they were executed.
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <strong className="text-slate-800 block mb-1">2. Concurrency Protection</strong>
-              Before undoing a seat cancellation, the engine verifies the released seat hasn't been occupied by another customer. If re-booked, the rollback is rejected to prevent double-booking.
-            </div>
-
-            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
-              <strong className="text-slate-800 block mb-1">3. Non-Chronological Query Warning</strong>
-              A Stack is explicitly chosen for rollback operations. Ordinary historical flight browsing is decoupled and handled via chronological database indexes, preventing misuse of the stack abstraction.
-            </div>
+        {/* Right Col: Stack Invariants */}
+        <div className="bg-surface-container-lowest rounded-3xl p-6 sm:p-7 shadow-sm border border-border-subtle space-y-4">
+          <h4 className="font-serif text-base font-bold text-slate-navy border-b border-border-subtle pb-3">
+            Stack Invariants &amp; Rollback
+          </h4>
+          <div className="space-y-3 text-xs text-charcoal-muted leading-relaxed">
+            <p>
+              <strong>LIFO Semantics:</strong> The most recent action is popped first, guaranteeing sequential transaction consistency during unbooking.
+            </p>
+            <p>
+              <strong>Atomic Rollback:</strong> When popped, the reverse mutation executes inside a SQLite transaction to release or restore the seat.
+            </p>
+            <p>
+              <strong>O(1) Time:</strong> Push and Pop operations maintain strict constant-time complexity with a bounded capacity of {history?.max_capacity || 50} entries.
+            </p>
           </div>
         </div>
-
       </div>
-
     </div>
   );
 };

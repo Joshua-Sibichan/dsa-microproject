@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Sparkles, Users, User, Mail, Baby, Accessibility, Check, Shield } from 'lucide-react';
 import { PassengerProfile, RecommendationResult, GroupSeatingResult } from '../types';
 
 interface PreferenceFormProps {
@@ -19,251 +18,185 @@ export const PreferenceForm: React.FC<PreferenceFormProps> = ({
   onFindGroupSeats,
   recommendation,
   groupResult,
-  loadingRec
+  loadingRec,
 }) => {
+  const [isExpanded, setIsExpanded] = useState<boolean>(true);
   const [groupSize, setGroupSize] = useState<number>(2);
 
   const togglePreference = (key: keyof PassengerProfile['preferences']) => {
-    setPassenger(prev => ({
+    setPassenger((prev) => ({
       ...prev,
       preferences: {
         ...prev.preferences,
-        [key]: !prev.preferences[key]
-      }
+        [key]: !prev.preferences[key],
+      },
     }));
   };
 
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/90 space-y-6">
-      <div>
-        <span className="text-xs font-mono font-bold tracking-wider text-[#C7A66A] uppercase">Seat Intelligence</span>
-        <h2 className="text-xl font-bold text-[#10243A]">Passenger & Seat Preferences</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Algorithmically optimizes seat assignment via multi-factor scoring</p>
-      </div>
-
-      {/* Passenger Basic Info */}
-      <div className="space-y-3 pt-2">
+    <div className="bg-surface-container-lowest rounded-2xl p-5 sm:p-6 shadow-sm border border-border-subtle space-y-4">
+      {/* Header with Expand Trigger */}
+      <div
+        className="flex items-center justify-between cursor-pointer"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Lead Passenger Full Name</label>
-          <div className="relative">
-            <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
-              value={passenger.name}
-              onChange={(e) => setPassenger({ ...passenger, name: e.target.value })}
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-              placeholder="e.g. Eleanor Vance"
-            />
-          </div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-secondary flex items-center gap-1">
+            <span className="material-symbols-outlined text-[14px]">auto_awesome</span>
+            <span>X Airways DSA Engine</span>
+          </span>
+          <h3 className="font-serif text-lg font-bold text-slate-navy">
+            Smart Seating Preferences &amp; Group Allocation
+          </h3>
         </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Email for Booking Confirmation</label>
-          <div className="relative">
-            <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="email"
-              value={passenger.email}
-              onChange={(e) => setPassenger({ ...passenger, email: e.target.value })}
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
-              placeholder="e.g. eleanor@airline.aero"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Preference Toggles Grid */}
-      <div className="pt-2 border-t border-slate-100">
-        <label className="block text-xs font-bold text-slate-700 mb-3 uppercase tracking-wider">
-          Scoring Factors & Seating Rules
-        </label>
-        
-        <div className="grid grid-cols-2 gap-2.5">
-          <button
-            type="button"
-            onClick={() => togglePreference('window')}
-            className={`p-3 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between ${
-              passenger.preferences.window
-                ? 'bg-blue-50 border-[#2563EB] text-[#2563EB] font-semibold'
-                : 'border-slate-200 hover:border-slate-300 text-slate-700'
-            }`}
-          >
-            <span>🪟 Window Seat</span>
-            {passenger.preferences.window && <Check className="w-4 h-4" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => togglePreference('aisle')}
-            className={`p-3 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between ${
-              passenger.preferences.aisle
-                ? 'bg-blue-50 border-[#2563EB] text-[#2563EB] font-semibold'
-                : 'border-slate-200 hover:border-slate-300 text-slate-700'
-            }`}
-          >
-            <span>🚶 Aisle Access</span>
-            {passenger.preferences.aisle && <Check className="w-4 h-4" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => togglePreference('avoid_middle')}
-            className={`p-3 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between ${
-              passenger.preferences.avoid_middle
-                ? 'bg-blue-50 border-[#2563EB] text-[#2563EB] font-semibold'
-                : 'border-slate-200 hover:border-slate-300 text-slate-700'
-            }`}
-          >
-            <span>🚫 Avoid Middle</span>
-            {passenger.preferences.avoid_middle && <Check className="w-4 h-4" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => togglePreference('extra_legroom')}
-            className={`p-3 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between ${
-              passenger.preferences.extra_legroom
-                ? 'bg-blue-50 border-[#2563EB] text-[#2563EB] font-semibold'
-                : 'border-slate-200 hover:border-slate-300 text-slate-700'
-            }`}
-          >
-            <span>🦵 Extra Legroom</span>
-            {passenger.preferences.extra_legroom && <Check className="w-4 h-4" />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => togglePreference('prefer_front')}
-            className={`p-3 rounded-xl border text-left text-xs font-medium transition-all flex items-center justify-between col-span-2 ${
-              passenger.preferences.prefer_front
-                ? 'bg-blue-50 border-[#2563EB] text-[#2563EB] font-semibold'
-                : 'border-slate-200 hover:border-slate-300 text-slate-700'
-            }`}
-          >
-            <span>⚡ Front Cabin Rows (Early Disembarkation)</span>
-            {passenger.preferences.prefer_front && <Check className="w-4 h-4" />}
-          </button>
-        </div>
-      </div>
-
-      {/* Regulatory Constraints / Special Needs */}
-      <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-        <label className="flex items-center space-x-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={passenger.traveling_with_infant}
-            onChange={(e) => setPassenger({ ...passenger, traveling_with_infant: e.target.checked })}
-            className="rounded text-blue-600 focus:ring-blue-500"
-          />
-          <Baby className="w-3.5 h-3.5 text-slate-500" />
-          <span>Infant in arms</span>
-        </label>
-
-        <label className="flex items-center space-x-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={passenger.requires_wheelchair}
-            onChange={(e) => setPassenger({ ...passenger, requires_wheelchair: e.target.checked })}
-            className="rounded text-blue-600 focus:ring-blue-500"
-          />
-          <Accessibility className="w-3.5 h-3.5 text-slate-500" />
-          <span>Mobility assistance</span>
-        </label>
-      </div>
-
-      {/* Recommend Seat CTA */}
-      <div className="pt-2">
         <button
           type="button"
-          onClick={onGetRecommendation}
-          disabled={loadingRec}
-          className="w-full py-3.5 px-4 bg-gradient-to-r from-[#10243A] to-[#1A3654] hover:from-[#0B1726] hover:to-[#10243A] text-white rounded-2xl font-semibold text-sm flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all border border-[#C7A66A]/30"
+          className="w-8 h-8 rounded-full bg-surface-container-low flex items-center justify-center text-slate-navy hover:bg-gold-light transition-colors"
         >
-          <Sparkles className="w-4 h-4 text-[#C7A66A]" />
-          <span>{loadingRec ? 'Evaluating Seats (MergeSort)...' : 'Recommend Best Seat via DSA'}</span>
+          <span className="material-symbols-outlined text-[18px]">
+            {isExpanded ? 'expand_less' : 'expand_more'}
+          </span>
         </button>
       </div>
 
-      {/* Contiguous Group Seating Form */}
-      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-xs font-bold text-slate-800">
-            <Users className="w-4 h-4 text-[#C7A66A]" />
-            <span>Traveling in Group?</span>
-          </div>
-          <span className="text-[11px] text-slate-500">Contiguous Adjacent Seats</span>
-        </div>
+      {isExpanded && (
+        <div className="space-y-4 pt-2 border-t border-border-subtle">
+          <p className="text-xs text-charcoal-muted">
+            Configure seating rules. The engine uses multi-factor algorithmic scoring to assign the optimal seat or find contiguous group seating blocks.
+          </p>
 
-        <div className="flex items-center space-x-2">
-          {[2, 3, 4].map((size) => (
+          {/* Scoring Factor Toggles */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[
+              { key: 'window', label: 'Window Seat', icon: 'border_left' },
+              { key: 'aisle', label: 'Aisle Seat', icon: 'view_column' },
+              { key: 'avoid_middle', label: 'Avoid Middle', icon: 'block' },
+              { key: 'extra_legroom', label: 'Extra Legroom', icon: 'star' },
+              { key: 'prefer_front', label: 'Forward Cabin', icon: 'arrow_upward' },
+            ].map(({ key, label, icon }) => {
+              const active = passenger.preferences[key as keyof PassengerProfile['preferences']];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => togglePreference(key as keyof PassengerProfile['preferences'])}
+                  className={`p-2.5 rounded-xl border text-left text-xs font-semibold flex items-center justify-between transition-all ${
+                    active
+                      ? 'bg-gold-light border-gold-metallic text-secondary shadow-sm'
+                      : 'bg-white border-border-subtle text-slate-navy hover:bg-surface-container-low'
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span className="material-symbols-outlined text-[15px]">{icon}</span>
+                    <span>{label}</span>
+                  </span>
+                  {active && (
+                    <span className="material-symbols-outlined text-secondary text-[14px]">check</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Accessibility & Infant Checkboxes */}
+          <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
+            <label className="flex items-center gap-2 cursor-pointer text-slate-navy font-medium">
+              <input
+                type="checkbox"
+                checked={passenger.traveling_with_infant}
+                onChange={(e) => setPassenger({ ...passenger, traveling_with_infant: e.target.checked })}
+                className="w-4 h-4 rounded text-primary focus:ring-primary"
+              />
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-secondary">child_friendly</span>
+                <span>Traveling with Infant (Bassinet priority)</span>
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2 cursor-pointer text-slate-navy font-medium">
+              <input
+                type="checkbox"
+                checked={passenger.requires_wheelchair}
+                onChange={(e) => setPassenger({ ...passenger, requires_wheelchair: e.target.checked })}
+                className="w-4 h-4 rounded text-primary focus:ring-primary"
+              />
+              <span className="flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px] text-secondary">accessible</span>
+                <span>Requires Wheelchair Assistance</span>
+              </span>
+            </label>
+          </div>
+
+          {/* Action Triggers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
             <button
-              key={size}
               type="button"
-              onClick={() => { setGroupSize(size); onFindGroupSeats(size); }}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                groupSize === size
-                  ? 'bg-emerald-600 text-white border-emerald-700 shadow-sm'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
-              }`}
+              disabled={loadingRec}
+              onClick={onGetRecommendation}
+              className="px-4 py-2.5 rounded-xl bg-slate-navy hover:bg-slate-900 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm transition-all active:scale-95 disabled:opacity-60"
             >
-              {size} Passengers
+              <span className="material-symbols-outlined text-[16px] text-secondary-container">
+                auto_awesome
+              </span>
+              <span>{loadingRec ? 'Scoring Seats...' : 'Smart Recommend Seat'}</span>
             </button>
-          ))}
-        </div>
 
-        {groupResult && (
-          <div className={`p-3 rounded-xl text-xs ${groupResult.found ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}`}>
-            <p className="font-semibold">{groupResult.message}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Recommendation Results Explainer Panel */}
-      {recommendation?.recommended_seat && (
-        <div className="p-5 rounded-2xl bg-gradient-to-br from-blue-50/70 to-indigo-50/70 border border-blue-200/80 space-y-3 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping"></span>
-              <span className="text-xs font-mono font-bold text-[#2563EB] uppercase">Algorithm Top Match</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={2}
+                max={6}
+                value={groupSize}
+                onChange={(e) => setGroupSize(Math.max(2, parseInt(e.target.value) || 2))}
+                className="w-14 px-2 py-2 text-xs font-bold bg-surface-container-low rounded-xl border border-border-subtle text-center focus:outline-none"
+                title="Group Size"
+              />
+              <button
+                type="button"
+                disabled={loadingRec}
+                onClick={() => onFindGroupSeats(groupSize)}
+                className="flex-1 px-4 py-2.5 rounded-xl bg-gold-light hover:bg-gold-light/80 text-secondary border border-gold-metallic/50 font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95 disabled:opacity-60"
+              >
+                <span className="material-symbols-outlined text-[16px]">groups</span>
+                <span>Find {groupSize} Contiguous Seats</span>
+              </button>
             </div>
-            <span className="text-xs font-mono font-bold bg-[#2563EB] text-white px-2.5 py-0.5 rounded-full">
-              {recommendation.recommended_seat.preference_score}% Match
-            </span>
           </div>
 
-          <div className="flex items-baseline justify-between">
-            <div>
-              <span className="text-2xl font-bold font-mono text-[#10243A]">Seat {recommendation.recommended_seat.seat_number}</span>
-              <span className="ml-2 text-xs text-slate-600 font-medium">{recommendation.recommended_seat.cabin_class} ({recommendation.recommended_seat.category})</span>
-            </div>
-            <span className="font-mono text-sm font-bold text-[#10243A]">
-              {recommendation.recommended_seat.price > 0 ? `$${recommendation.recommended_seat.price.toFixed(2)}` : 'Complimentary'}
-            </span>
-          </div>
-
-          {/* Explainable Factor Breakdown */}
-          <div className="space-y-1 pt-2 border-t border-blue-200/50">
-            <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Factor Breakdown:</span>
-            {recommendation.recommended_seat.score_breakdown.map((item, idx) => (
-              <div key={idx} className="flex justify-between items-center text-xs py-0.5">
-                <span className="text-slate-700">{item.description}</span>
-                <span className={`font-mono font-semibold ${item.delta > 0 ? 'text-emerald-700' : 'text-slate-500'}`}>
-                  {item.delta > 0 ? `+${item.delta}` : item.delta}
+          {/* Recommendation & Group Results Feedback */}
+          {recommendation && (
+            <div className="p-3.5 rounded-xl bg-gold-light/40 border border-gold-metallic/30 text-xs space-y-1">
+              <div className="flex items-center justify-between font-bold text-secondary">
+                <span className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px]">verified</span>
+                  <span>
+                    Recommendation Score: {recommendation.recommended_seat?.preference_score ?? 95}/100
+                  </span>
+                </span>
+                <span className="font-mono bg-white px-2 py-0.5 rounded text-primary">
+                  {recommendation.recommended_seat ? `Seat ${recommendation.recommended_seat.seat_number}` : 'None'}
                 </span>
               </div>
-            ))}
-          </div>
+              <p className="text-charcoal-muted text-[11px]">{recommendation.message}</p>
+            </div>
+          )}
 
-          {/* Algorithmic Sorting Metric Badge */}
-          {recommendation.sorting_metrics && (
-            <div className="mt-3 pt-2 border-t border-blue-200/50 flex justify-between items-center text-[11px] font-mono text-slate-500">
-              <span>Stable MergeSort:</span>
-              <span>{recommendation.sorting_metrics.comparisons} comparisons ({recommendation.sorting_metrics.execution_time_us}μs)</span>
+          {groupResult && (
+            <div className="p-3.5 rounded-xl bg-surface-container-low border border-border-subtle text-xs space-y-1">
+              <div className="flex items-center justify-between font-bold text-slate-navy">
+                <span className="flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px] text-secondary">group_work</span>
+                  <span>Contiguous Group Block</span>
+                </span>
+                <span className="font-mono text-primary font-bold">
+                  {groupResult.seat_numbers?.join(', ') || 'No block'}
+                </span>
+              </div>
+              <p className="text-charcoal-muted text-[11px]">{groupResult.message}</p>
             </div>
           )}
         </div>
       )}
-
     </div>
   );
 };
