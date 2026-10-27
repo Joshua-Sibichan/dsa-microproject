@@ -95,10 +95,6 @@ export const FlightSearchPanel: React.FC<FlightSearchPanelProps> = ({
       {/* Editorial Luxury Header Banner */}
       <div className="bg-slate-navy px-6 lg:px-8 py-6 text-surface-container-lowest flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10">
         <div>
-          <div className="flex items-center gap-2 text-secondary-container text-xs font-semibold uppercase tracking-wider mb-1">
-            <span className="material-symbols-outlined text-[16px]">stars</span>
-            <span>World-Class Flight Network</span>
-          </div>
           <h2 className="font-serif text-2xl sm:text-3xl font-bold text-white tracking-tight">
             Book Flight &amp; Reserve Seats
           </h2>
