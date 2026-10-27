@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Flight } from '../types';
 import { CabinClass, SearchCriteria } from './FlightSearchPanel';
 
@@ -43,6 +43,140 @@ export const cabinMultiplier = (cabin: CabinClass): number => {
   }
 };
 
+const AIRPORT_INFO: Record<string, { city: string; name: string; durFromDXB: string; durToDXB: string; depToDXB: string; arrToDXB: string; depFromDXB: string; arrFromDXB: string; baseFare: number; aircraft: string; flightNoIn: string; flightNoOut: string }> = {
+  DXB: { city: 'Dubai', name: 'Dubai International (Hub)', durFromDXB: '0h', durToDXB: '0h', depToDXB: '00:00', arrToDXB: '00:00', depFromDXB: '00:00', arrFromDXB: '00:00', baseFare: 0, aircraft: 'Airbus A380-800', flightNoIn: 'XA-001', flightNoOut: 'XA-001' },
+  LHR: { city: 'London', name: 'London Heathrow', durFromDXB: '7h 25m', durToDXB: '6h 45m', depToDXB: '20:45', arrToDXB: '06:30', depFromDXB: '14:15', arrFromDXB: '18:40', baseFare: 680, aircraft: 'Airbus A380-800', flightNoIn: 'XA-002', flightNoOut: 'EK-001' },
+  JFK: { city: 'New York', name: 'New York JFK', durFromDXB: '14h 25m', durToDXB: '12h 15m', depToDXB: '16:30', arrToDXB: '11:45', depFromDXB: '08:30', arrFromDXB: '14:25', baseFare: 920, aircraft: 'Boeing 777-300ER', flightNoIn: 'XA-202', flightNoOut: 'EK-201' },
+  SIN: { city: 'Singapore', name: 'Singapore Changi', durFromDXB: '7h 25m', durToDXB: '7h 25m', depToDXB: '09:15', arrToDXB: '12:40', depFromDXB: '03:15', arrFromDXB: '14:40', baseFare: 490, aircraft: 'Boeing 777-300ER', flightNoIn: 'XA-355', flightNoOut: 'EK-354' },
+  BKK: { city: 'Bangkok', name: 'Bangkok Suvarnabhumi', durFromDXB: '6h 20m', durToDXB: '6h 45m', depToDXB: '09:30', arrToDXB: '13:15', depFromDXB: '22:30', arrFromDXB: '07:50', baseFare: 540, aircraft: 'Boeing 777-300ER', flightNoIn: 'XA-385', flightNoOut: 'EK-384' },
+  BOM: { city: 'Mumbai', name: 'Mumbai CSIA', durFromDXB: '3h 15m', durToDXB: '3h 15m', depToDXB: '16:15', arrToDXB: '18:30', depFromDXB: '10:00', arrFromDXB: '14:45', baseFare: 310, aircraft: 'Boeing 777-300ER', flightNoIn: 'XA-501', flightNoOut: 'EK-500' },
+  HND: { city: 'Tokyo', name: 'Tokyo Haneda', durFromDXB: '9h 45m', durToDXB: '9h 40m', depToDXB: '19:20', arrToDXB: '02:00', depFromDXB: '02:50', arrFromDXB: '17:35', baseFare: 830, aircraft: 'Boeing 777-300ER', flightNoIn: 'XA-319', flightNoOut: 'EK-318' },
+  CDG: { city: 'Paris', name: 'Paris Charles de Gaulle', durFromDXB: '7h 10m', durToDXB: '6h 45m', depToDXB: '15:35', arrToDXB: '00:20', depFromDXB: '08:20', arrFromDXB: '13:30', baseFare: 710, aircraft: 'Airbus A380-800', flightNoIn: 'XA-074', flightNoOut: 'EK-073' },
+  SYD: { city: 'Sydney', name: 'Sydney Kingsford Smith', durFromDXB: '13h 50m', durToDXB: '14h 20m', depToDXB: '06:00', arrToDXB: '13:20', depFromDXB: '02:15', arrFromDXB: '22:05', baseFare: 1150, aircraft: 'Airbus A380-800', flightNoIn: 'XA-415', flightNoOut: 'EK-414' },
+  SFO: { city: 'San Francisco', name: 'San Francisco Intl', durFromDXB: '15h 15m', durToDXB: '14h 40m', depToDXB: '15:45', arrToDXB: '19:25', depFromDXB: '08:45', arrFromDXB: '13:00', baseFare: 980, aircraft: 'Boeing 777-300ER', flightNoIn: 'XA-802', flightNoOut: 'XA-801' },
+};
+
+function buildConnectingFlights(flights: Flight[], criteria: SearchCriteria): Flight[] {
+  const origin = (criteria.origin || '').toUpperCase().trim();
+  const dest = (criteria.destination || '').toUpperCase().trim();
+  if (!origin || !dest || origin === dest) return [];
+
+  const hub = 'DXB';
+  const originInfo = AIRPORT_INFO[origin] || {
+    city: origin,
+    name: `${origin} Airport`,
+    durFromDXB: '7h 00m',
+    durToDXB: '7h 00m',
+    depToDXB: '09:00',
+    arrToDXB: '13:00',
+    depFromDXB: '14:00',
+    arrFromDXB: '18:00',
+    baseFare: 500,
+    aircraft: 'Boeing 777-300ER',
+    flightNoIn: `XA-9${origin.charCodeAt(0) % 90}`,
+    flightNoOut: `XA-8${origin.charCodeAt(0) % 90}`,
+  };
+
+  const destInfo = AIRPORT_INFO[dest] || {
+    city: dest,
+    name: `${dest} Airport`,
+    durFromDXB: '7h 00m',
+    durToDXB: '7h 00m',
+    depToDXB: '10:00',
+    arrToDXB: '14:00',
+    depFromDXB: '14:30',
+    arrFromDXB: '18:30',
+    baseFare: 500,
+    aircraft: 'Airbus A380-800',
+    flightNoIn: `XA-7${dest.charCodeAt(0) % 90}`,
+    flightNoOut: `XA-6${dest.charCodeAt(0) % 90}`,
+  };
+
+  // Find DB legs where available
+  const leg1InDb = flights.find((f) => f.origin === origin && f.destination === hub);
+  const leg2InDb = flights.find((f) => f.origin === hub && f.destination === dest);
+
+  const leg1 = {
+    flight_number: leg1InDb?.flight_number || originInfo.flightNoIn,
+    origin,
+    origin_city: leg1InDb?.origin_city || originInfo.city,
+    destination: hub,
+    destination_city: 'Dubai',
+    departure_time: leg1InDb?.departure_time || originInfo.depToDXB,
+    arrival_time: leg1InDb?.arrival_time || originInfo.arrToDXB,
+    duration: leg1InDb?.duration || originInfo.durToDXB,
+    aircraft_type: leg1InDb?.aircraft_type || originInfo.aircraft,
+    base_fare: leg1InDb?.base_fare || originInfo.baseFare,
+  };
+
+  const leg2 = {
+    flight_number: leg2InDb?.flight_number || destInfo.flightNoOut,
+    origin: hub,
+    origin_city: 'Dubai',
+    destination: dest,
+    destination_city: leg2InDb?.destination_city || destInfo.city,
+    departure_time: leg2InDb?.departure_time || destInfo.depFromDXB,
+    arrival_time: leg2InDb?.arrival_time || destInfo.arrFromDXB,
+    duration: leg2InDb?.duration || destInfo.durFromDXB,
+    aircraft_type: leg2InDb?.aircraft_type || destInfo.aircraft,
+    base_fare: leg2InDb?.base_fare || destInfo.baseFare,
+  };
+
+  // Always use a real flight ID from the database for seat inventory allocation
+  const targetId = leg2InDb?.id || leg1InDb?.id || flights.find((f) => f.id.startsWith('FL-'))?.id || 'FL-001';
+
+  // Combined discounted fare
+  const combinedFare = Math.round((leg1.base_fare + leg2.base_fare) * 0.88);
+
+  const connectingFlight: Flight = {
+    id: targetId,
+    flight_number: `${leg1.flight_number} / ${leg2.flight_number}`,
+    origin,
+    origin_city: originInfo.city,
+    destination: dest,
+    destination_city: destInfo.city,
+    departure_time: leg1.departure_time,
+    arrival_time: leg2.arrival_time,
+    duration: '16h 25m',
+    aircraft_type: `${leg1.aircraft_type.split(' ')[0]} / ${leg2.aircraft_type.split(' ')[0]}`,
+    base_fare: combinedFare,
+    departure_date: criteria.departDate || '2026-11-15',
+    total_seats: 120,
+    available_seats: 108,
+    status: 'ON_TIME',
+    is_connecting: true,
+    layover_airport: 'DXB',
+    layover_city: 'Dubai',
+    layover_duration: '1h 35m',
+    segments: [
+      {
+        flight_number: leg1.flight_number,
+        origin: leg1.origin,
+        origin_city: leg1.origin_city,
+        destination: leg1.destination,
+        destination_city: leg1.destination_city,
+        departure_time: leg1.departure_time,
+        arrival_time: leg1.arrival_time,
+        duration: leg1.duration,
+        aircraft_type: leg1.aircraft_type,
+      },
+      {
+        flight_number: leg2.flight_number,
+        origin: leg2.origin,
+        origin_city: leg2.origin_city,
+        destination: leg2.destination,
+        destination_city: leg2.destination_city,
+        departure_time: leg2.departure_time,
+        arrival_time: leg2.arrival_time,
+        duration: leg2.duration,
+        aircraft_type: leg2.aircraft_type,
+      },
+    ],
+  };
+
+  return [connectingFlight];
+}
+
 interface FlightResultsPanelProps {
   flights: Flight[];
   criteria: SearchCriteria;
@@ -56,14 +190,24 @@ export const FlightResultsPanel: React.FC<FlightResultsPanelProps> = ({
   onBack,
   onSelect,
 }) => {
-  const [expandedId, setExpandedId] = useState<string | null>(flights[0]?.id ?? null);
-  const [selectedFareByFlight, setSelectedFareByFlight] = useState<Record<string, FareBrand>>({});
+  const directFiltered = useMemo(() => {
+    return flights.filter((f) => {
+      const o = !criteria.origin || f.origin === criteria.origin;
+      const d = !criteria.destination || f.destination === criteria.destination;
+      return o && d;
+    });
+  }, [flights, criteria.origin, criteria.destination]);
 
-  const filtered = flights.filter((f) => {
-    const o = !criteria.origin || f.origin === criteria.origin;
-    const d = !criteria.destination || f.destination === criteria.destination;
-    return o && d;
-  });
+  const connectingFlights = useMemo(() => {
+    if (directFiltered.length > 0) return [];
+    return buildConnectingFlights(flights, criteria);
+  }, [directFiltered, flights, criteria]);
+
+  const displayFlights = directFiltered.length > 0 ? directFiltered : connectingFlights;
+  const isConnectingResult = directFiltered.length === 0 && connectingFlights.length > 0;
+
+  const [expandedId, setExpandedId] = useState<string | null>(displayFlights[0]?.id ?? null);
+  const [selectedFareByFlight, setSelectedFareByFlight] = useState<Record<string, FareBrand>>({});
 
   const getComputedPrice = (flight: Flight, brand: FareBrand): number => {
     const base = flight.base_fare || 450;
@@ -108,13 +252,47 @@ export const FlightResultsPanel: React.FC<FlightResultsPanelProps> = ({
         </div>
       )}
 
+      {/* Connecting Flight Route Redirection Notice */}
+      {isConnectingResult && (
+        <div className="bg-slate-navy text-white rounded-2xl p-4 sm:p-5 border border-gold-metallic/30 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-gold-metallic/20 border border-gold-metallic/40 flex items-center justify-center text-secondary-container shrink-0">
+              <span className="material-symbols-outlined text-[24px]">connecting_airports</span>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-secondary-container">
+                  Route Redirection
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary-container text-[10px] font-bold">
+                  1 Stop via Dubai (DXB)
+                </span>
+              </div>
+              <h3 className="font-serif text-base sm:text-lg font-bold text-white mt-0.5">
+                No Direct Flights · Redirected to Connecting Flight
+              </h3>
+              <p className="text-xs text-surface-container-highest/80 mt-0.5">
+                No scheduled non-stop flights operate on this route. Showing guaranteed connecting itinerary with 1 seamless transfer at Dubai International (DXB).
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-4 py-2 rounded-xl bg-surface-container-lowest/10 hover:bg-surface-container-lowest/20 border border-white/10 text-xs font-semibold text-white whitespace-nowrap transition-colors"
+          >
+            Change Search
+          </button>
+        </div>
+      )}
+
       {/* Flight Results List */}
-      {filtered.length === 0 ? (
+      {displayFlights.length === 0 ? (
         <div className="bg-surface-container-lowest p-12 text-center rounded-2xl border border-border-subtle shadow-sm space-y-3">
           <span className="material-symbols-outlined text-[48px] text-charcoal-muted">flight_takeoff</span>
-          <h3 className="font-serif text-xl font-bold text-slate-navy">No Direct Flights Found</h3>
+          <h3 className="font-serif text-xl font-bold text-slate-navy">No Route Available</h3>
           <p className="text-xs text-charcoal-muted max-w-md mx-auto">
-            No scheduled flights matched {criteria.origin} to {criteria.destination}. Try selecting Dubai (DXB) as either your origin or destination hub.
+            Please choose different departure and arrival destinations.
           </p>
           <button
             type="button"
@@ -126,7 +304,7 @@ export const FlightResultsPanel: React.FC<FlightResultsPanelProps> = ({
         </div>
       ) : (
         <div className="space-y-4">
-          {filtered.map((flight) => {
+          {displayFlights.map((flight) => {
             const isExpanded = expandedId === flight.id;
             const currentBrand = selectedFareByFlight[flight.id] || 'SAVER';
             const price = getComputedPrice(flight, currentBrand);
@@ -142,8 +320,10 @@ export const FlightResultsPanel: React.FC<FlightResultsPanelProps> = ({
                   <div className="flex flex-col sm:flex-row sm:items-center gap-6 lg:gap-8 flex-1">
                     {/* Airline & Flight Number */}
                     <div className="flex items-center gap-3 min-w-[130px]">
-                      <div className="w-10 h-10 rounded-xl bg-crimson-light text-primary flex items-center justify-center font-bold">
-                        <span className="material-symbols-outlined text-[20px]">flight</span>
+                      <div className="w-10 h-10 rounded-xl bg-crimson-light text-primary flex items-center justify-center font-bold shrink-0">
+                        <span className="material-symbols-outlined text-[20px]">
+                          {flight.is_connecting ? 'connecting_airports' : 'flight'}
+                        </span>
                       </div>
                       <div>
                         <span className="font-mono font-bold text-sm text-slate-navy block">
@@ -173,13 +353,27 @@ export const FlightResultsPanel: React.FC<FlightResultsPanelProps> = ({
                         </span>
                         <div className="w-full flex items-center relative">
                           <div className="h-0.5 w-full bg-border-subtle"></div>
-                          <div className="absolute left-1/2 -translate-x-1/2 -top-1.5 w-3 h-3 rounded-full bg-gold-metallic flex items-center justify-center" title="Direct Flight / Hub Connection">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white"></span>
+                          <div
+                            className={`absolute left-1/2 -translate-x-1/2 -top-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center ${
+                              flight.is_connecting
+                                ? 'bg-secondary-container ring-2 ring-gold-metallic/40'
+                                : 'bg-gold-metallic'
+                            }`}
+                            title={flight.is_connecting ? '1 Stop in Dubai (DXB)' : 'Non-Stop Direct'}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-navy"></span>
                           </div>
                         </div>
-                        <span className="text-[10px] text-secondary font-semibold uppercase tracking-wider mt-1">
-                          Non-Stop Direct
-                        </span>
+                        {flight.is_connecting ? (
+                          <span className="text-[10px] text-secondary font-bold uppercase tracking-wider mt-1 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px]">hub</span>
+                            <span>1 Stop via {flight.layover_airport || 'DXB'} ({flight.layover_duration || '1h 35m'})</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-secondary font-semibold uppercase tracking-wider mt-1">
+                            Non-Stop Direct
+                          </span>
+                        )}
                       </div>
 
                       {/* Arrival */}
@@ -223,6 +417,81 @@ export const FlightResultsPanel: React.FC<FlightResultsPanelProps> = ({
                 {/* Fare Matrix (Segmented Cards with Crimson Top Border) */}
                 {isExpanded && (
                   <div className="bg-surface-container-low/50 p-5 sm:p-6 border-t border-border-subtle space-y-4">
+                    {/* Connecting Segments Breakdown Box */}
+                    {flight.segments && flight.segments.length > 1 && (
+                      <div className="bg-white rounded-xl p-4 border border-border-subtle shadow-sm space-y-3">
+                        <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-secondary flex items-center gap-1.5 pb-2 border-b border-border-subtle">
+                          <span className="material-symbols-outlined text-[16px]">linear_scale</span>
+                          <span>Connecting Itinerary Flight Segments</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Segment 1 */}
+                          <div className="bg-surface-container-low p-3.5 rounded-xl border border-border-subtle space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-primary-container text-white">
+                                Flight 1
+                              </span>
+                              <span className="font-mono font-bold text-xs text-slate-navy">
+                                {flight.segments[0].flight_number}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <div>
+                                <span className="font-bold text-slate-navy block text-sm">{flight.segments[0].departure_time}</span>
+                                <span className="text-charcoal-muted text-[11px]">{flight.segments[0].origin} · {flight.segments[0].origin_city}</span>
+                              </div>
+                              <span className="text-charcoal-muted text-[11px] font-mono">{flight.segments[0].duration}</span>
+                              <div className="text-right">
+                                <span className="font-bold text-slate-navy block text-sm">{flight.segments[0].arrival_time}</span>
+                                <span className="text-charcoal-muted text-[11px]">{flight.segments[0].destination} · {flight.segments[0].destination_city}</span>
+                              </div>
+                            </div>
+                            <div className="text-[10px] text-charcoal-muted pt-1 border-t border-border-subtle flex justify-between">
+                              <span>Aircraft: <strong>{flight.segments[0].aircraft_type}</strong></span>
+                              <span className="text-emerald-700 font-semibold">Baggage Checked Through</span>
+                            </div>
+                          </div>
+
+                          {/* Segment 2 */}
+                          <div className="bg-surface-container-low p-3.5 rounded-xl border border-border-subtle space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-primary-container text-white">
+                                Flight 2
+                              </span>
+                              <span className="font-mono font-bold text-xs text-slate-navy">
+                                {flight.segments[1].flight_number}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <div>
+                                <span className="font-bold text-slate-navy block text-sm">{flight.segments[1].departure_time}</span>
+                                <span className="text-charcoal-muted text-[11px]">{flight.segments[1].origin} · {flight.segments[1].origin_city}</span>
+                              </div>
+                              <span className="text-charcoal-muted text-[11px] font-mono">{flight.segments[1].duration}</span>
+                              <div className="text-right">
+                                <span className="font-bold text-slate-navy block text-sm">{flight.segments[1].arrival_time}</span>
+                                <span className="text-charcoal-muted text-[11px]">{flight.segments[1].destination} · {flight.segments[1].destination_city}</span>
+                              </div>
+                            </div>
+                            <div className="text-[10px] text-charcoal-muted pt-1 border-t border-border-subtle flex justify-between">
+                              <span>Aircraft: <strong>{flight.segments[1].aircraft_type}</strong></span>
+                              <span className="text-secondary font-semibold">Flagship Service</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Layover Hub Pill */}
+                        <div className="bg-gold-light/40 border border-gold-metallic/30 rounded-lg p-2.5 flex items-center justify-between text-xs text-secondary">
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-[16px]">transfer_within_a_station</span>
+                            <span className="font-semibold">Layover Transfer at Dubai International (DXB)</span>
+                          </div>
+                          <span className="font-mono font-bold">{flight.layover_duration || '1h 35m'} Layover</span>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex items-center justify-between">
                       <h4 className="font-serif text-base font-bold text-slate-navy">
                         Choose Fare Tier for {criteria.cabinClass.replace('_', ' ')}
@@ -248,7 +517,7 @@ export const FlightResultsPanel: React.FC<FlightResultsPanelProps> = ({
                                 : 'border-border-subtle hover:border-slate-navy/40 shadow-sm'
                             }`}
                           >
-                            {/* Crimson Top Border (3px) on select per Stitch DESIGN.md */}
+                            {/* Crimson Top Border (3px) on select */}
                             {isSelected && (
                               <div className="absolute top-0 left-0 right-0 h-[3px] bg-primary rounded-t-xl"></div>
                             )}
@@ -297,7 +566,13 @@ export const FlightResultsPanel: React.FC<FlightResultsPanelProps> = ({
                                   : 'bg-surface-container-low hover:bg-surface-container text-slate-navy'
                               }`}
                             >
-                              <span>{isSelected ? 'Select & Continue' : 'Select ' + tier.label}</span>
+                              <span>
+                                {isSelected
+                                  ? flight.is_connecting
+                                    ? 'Select Connecting Flight'
+                                    : 'Select & Continue'
+                                  : 'Select ' + tier.label}
+                              </span>
                               <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
                             </button>
                           </div>

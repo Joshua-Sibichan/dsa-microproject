@@ -109,7 +109,17 @@ def seed_demo_data(conn: sqlite3.Connection) -> None:
         ("FL-318", "EK-318", "DXB", "Dubai", "HND", "Tokyo Haneda", "02:50", "17:35", "9h 45m", "Boeing 777-300ER", 830.0, "2026-11-16", 120, 116, "ON_TIME"),
         ("FL-073", "EK-073", "DXB", "Dubai", "CDG", "Paris Charles de Gaulle", "08:20", "13:30", "7h 10m", "Airbus A380-800", 710.0, "2026-11-16", 120, 114, "ON_TIME"),
         ("FL-414", "EK-414", "DXB", "Dubai", "SYD", "Sydney", "02:15", "22:05", "13h 50m", "Airbus A380-800", 1150.0, "2026-11-17", 120, 118, "ON_TIME"),
-        ("FL-354", "EK-354", "DXB", "Dubai", "SIN", "Singapore", "03:15", "14:40", "7h 25m", "Boeing 777-300ER", 490.0, "2026-11-15", 120, 113, "ON_TIME")
+        ("FL-354", "EK-354", "DXB", "Dubai", "SIN", "Singapore", "03:15", "14:40", "7h 25m", "Boeing 777-300ER", 490.0, "2026-11-15", 120, 113, "ON_TIME"),
+        ("FL-002", "XA-002", "LHR", "London Heathrow", "DXB", "Dubai", "20:45", "06:30", "6h 45m", "Airbus A380-800", 680.0, "2026-11-15", 120, 112, "ON_TIME"),
+        ("FL-202", "XA-202", "JFK", "New York", "DXB", "Dubai", "16:30", "11:45", "12h 15m", "Boeing 777-300ER", 920.0, "2026-11-15", 120, 110, "ON_TIME"),
+        ("FL-385", "XA-385", "BKK", "Bangkok", "DXB", "Dubai", "09:30", "13:15", "6h 45m", "Boeing 777-300ER", 540.0, "2026-11-15", 120, 114, "ON_TIME"),
+        ("FL-501", "XA-501", "BOM", "Mumbai", "DXB", "Dubai", "16:15", "18:30", "3h 15m", "Boeing 777-300ER", 310.0, "2026-11-15", 120, 115, "ON_TIME"),
+        ("FL-319", "XA-319", "HND", "Tokyo Haneda", "DXB", "Dubai", "19:20", "02:00", "9h 40m", "Boeing 777-300ER", 830.0, "2026-11-15", 120, 118, "ON_TIME"),
+        ("FL-074", "XA-074", "CDG", "Paris Charles de Gaulle", "DXB", "Dubai", "15:35", "00:20", "6h 45m", "Airbus A380-800", 710.0, "2026-11-15", 120, 116, "ON_TIME"),
+        ("FL-415", "XA-415", "SYD", "Sydney", "DXB", "Dubai", "06:00", "13:20", "14h 20m", "Airbus A380-800", 1150.0, "2026-11-15", 120, 117, "ON_TIME"),
+        ("FL-355", "XA-355", "SIN", "Singapore", "DXB", "Dubai", "09:15", "12:40", "7h 25m", "Boeing 777-300ER", 490.0, "2026-11-15", 120, 114, "ON_TIME"),
+        ("FL-801", "XA-801", "DXB", "Dubai", "SFO", "San Francisco", "08:45", "13:00", "15h 15m", "Boeing 777-300ER", 980.0, "2026-11-15", 120, 111, "ON_TIME"),
+        ("FL-802", "XA-802", "SFO", "San Francisco", "DXB", "Dubai", "15:45", "19:25", "14h 40m", "Boeing 777-300ER", 980.0, "2026-11-15", 120, 113, "ON_TIME")
     ]
 
     for fl in flights:

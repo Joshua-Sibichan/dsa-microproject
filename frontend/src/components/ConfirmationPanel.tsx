@@ -100,7 +100,9 @@ export const ConfirmationPanel: React.FC<ConfirmationPanelProps> = ({
                 <div className="w-24 h-0.5 bg-border-subtle my-1 relative">
                   <div className="absolute left-1/2 -top-1 -translate-x-1/2 w-2 h-2 rounded-full bg-gold-metallic"></div>
                 </div>
-                <span className="text-[10px] text-secondary font-semibold uppercase">Non-Stop</span>
+                <span className="text-[10px] text-secondary font-semibold uppercase">
+                  {flight.is_connecting ? '1 Stop via DXB' : 'Non-Stop'}
+                </span>
               </div>
 
               <div className="text-right">

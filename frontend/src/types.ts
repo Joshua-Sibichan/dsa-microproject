@@ -1,3 +1,15 @@
+export interface FlightSegment {
+  flight_number: string;
+  origin: string;
+  origin_city: string;
+  destination: string;
+  destination_city: string;
+  departure_time: string;
+  arrival_time: string;
+  duration: string;
+  aircraft_type: string;
+}
+
 export interface Flight {
   id: string;
   flight_number: string;
@@ -14,6 +26,11 @@ export interface Flight {
   total_seats: number;
   available_seats: number;
   status: string;
+  is_connecting?: boolean;
+  layover_city?: string;
+  layover_airport?: string;
+  layover_duration?: string;
+  segments?: FlightSegment[];
 }
 
 export interface Seat {
