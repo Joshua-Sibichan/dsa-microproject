@@ -17,8 +17,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   undoCount,
   onTriggerUndo
 }) => {
-  const [currency, setCurrency] = useState<'USD' | 'AED'>('USD');
-
   return (
     <header className="sticky top-0 z-50 bg-slate-navy/95 backdrop-blur-xl border-b border-white/10 shadow-[0_2px_12px_rgba(0,0,0,0.18)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex flex-col justify-center py-2.5 sm:py-3">
@@ -71,26 +69,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Action Utilities & Tabs */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Currency Switcher */}
-            <div className="hidden md:flex items-center gap-1 bg-surface-container-lowest/10 px-2.5 py-1 rounded-full text-white text-xs">
-              <span className="material-symbols-outlined text-[14px] text-secondary-container">payments</span>
-              <button 
-                type="button" 
-                onClick={() => setCurrency('USD')}
-                className={`font-semibold transition-colors ${currency === 'USD' ? 'text-secondary-container' : 'text-charcoal-muted hover:text-white'}`}
-              >
-                USD
-              </button>
-              <span className="text-charcoal-muted">/</span>
-              <button 
-                type="button" 
-                onClick={() => setCurrency('AED')}
-                className={`font-semibold transition-colors ${currency === 'AED' ? 'text-secondary-container' : 'text-charcoal-muted hover:text-white'}`}
-              >
-                AED
-              </button>
-            </div>
-
             {/* Undo Action Pill */}
             {undoCount > 0 && (
               <button
