@@ -3,15 +3,16 @@
 @tailwind utilities;
 
 :root {
-  --color-navy: #10243A;
-  --color-gold: #C7A66A;
+  --color-navy: #0F141E;
+  --color-gold: #9E7B35;
   --color-teal: #168C78;
+  --color-ek-red: #D71921;
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  background-color: #F7F9FC;
-  color: #1e293b;
+  font-family: 'Work Sans', system-ui, -apple-system, sans-serif;
+  background-color: #FAF9F7;
+  color: #1a1c1b;
 }
 
 /* Custom scrollbars for cabin deck and visualizers */

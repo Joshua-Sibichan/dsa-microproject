@@ -1,8 +1,9 @@
 """
-AeroSeat Intelligence — FastAPI Application Entry Point
-Exposes core reservation workflows, seat intelligence, and real-time DSA hub instrumentation.
+X Airways Intelligence — FastAPI Application Entry Point
+Exposes core reservation workflows, seat intelligence, 2D matrix allocation,
+and real-time DSA hub instrumentation.
 """
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
@@ -16,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from app.database import init_db, get_db_connection
 from app.models import (
     FlightModel, SeatModel, ReservationCreateRequest, ReservationResponse,
+    MultiPassengerReservationRequest, ModifySeatRequest,
     RecommendationRequest, GroupSeatingRequest, WaitlistRequest,
     BSTActionRequest, GraphRouteRequest, BenchmarkRequest
 )
@@ -25,6 +27,7 @@ from app.dsa.bst_index import BookingBST
 from app.dsa.airport_graph import AirportGraph
 from app.dsa.seat_recommender import SeatRecommender
 from app.dsa.benchmark_runner import BenchmarkRunner
+from app.dsa.seat_grid_2d import SeatGrid2D
 
 # Global in-memory DSA instances
 bst_index = BookingBST()
@@ -50,16 +53,16 @@ def setup_airport_network(graph: AirportGraph) -> None:
     for code, name, city, country, lat, lng in airports:
         graph.add_airport(code, name, city, country, lat, lng)
 
-    # Routes (Corridors)
+    # Corridors / Routes
     routes = [
-        ("DXB", "LHR", "EK-001", 7.5, 650.0),
-        ("DXB", "JFK", "EK-201", 14.0, 950.0),
-        ("DXB", "SIN", "EK-354", 7.5, 480.0),
-        ("DXB", "BOM", "EK-500", 3.5, 280.0),
-        ("DXB", "CDG", "EK-073", 7.0, 620.0),
-        ("DXB", "FRA", "EK-045", 6.5, 590.0),
+        ("DXB", "LHR", "EK-001", 7.5, 680.0),
+        ("DXB", "JFK", "EK-201", 14.0, 920.0),
+        ("DXB", "SIN", "EK-354", 7.5, 490.0),
+        ("DXB", "BOM", "EK-500", 3.5, 310.0),
+        ("DXB", "CDG", "EK-073", 7.0, 710.0),
+        ("DXB", "FRA", "EK-045", 6.5, 640.0),
         ("DXB", "SYD", "EK-414", 14.0, 1150.0),
-        ("DXB", "HND", "EK-318", 9.5, 820.0),
+        ("DXB", "HND", "EK-318", 9.5, 830.0),
         ("LHR", "JFK", "BA-175", 8.0, 720.0),
         ("LHR", "CDG", "AF-1681", 1.2, 160.0),
         ("FRA", "CDG", "LH-1034", 1.3, 170.0),
@@ -79,7 +82,9 @@ def sync_bst_from_db() -> None:
     cursor = conn.cursor()
     cursor.execute("""
         SELECT r.pnr, r.flight_id, r.seat_number, r.passenger_name, r.passenger_email,
-               r.created_at, r.status, f.flight_number, f.origin, f.destination, s.cabin_class
+               r.created_at, r.status, f.flight_number, f.origin, f.origin_city,
+               f.destination, f.destination_city, f.departure_time, f.arrival_time,
+               f.duration, f.aircraft_type, s.cabin_class
         FROM reservations r
         JOIN flights f ON r.flight_id = f.id
         JOIN seats s ON r.flight_id = s.flight_id AND r.seat_number = s.seat_number
@@ -92,7 +97,13 @@ def sync_bst_from_db() -> None:
             "flight_id": row["flight_id"],
             "flight_number": row["flight_number"],
             "origin": row["origin"],
+            "origin_city": row["origin_city"],
             "destination": row["destination"],
+            "destination_city": row["destination_city"],
+            "departure_time": row["departure_time"],
+            "arrival_time": row["arrival_time"],
+            "duration": row["duration"],
+            "aircraft_type": row["aircraft_type"],
             "seat_number": row["seat_number"],
             "cabin_class": row["cabin_class"],
             "passenger_name": row["passenger_name"],
@@ -102,6 +113,21 @@ def sync_bst_from_db() -> None:
         }
         bst_index.insert(row["pnr"], val)
     conn.close()
+
+
+def build_seat_grid_for_flight(flight_id: str) -> SeatGrid2D:
+    """Builds a SeatGrid2D in-memory matrix from database seats for flight_id."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM seats WHERE flight_id = ? ORDER BY row_number, column_letter", (flight_id,))
+    rows = cursor.fetchall()
+    conn.close()
+
+    grid = SeatGrid2D(min_row=1, max_row=26)
+    for r in rows:
+        s_dict = dict(r)
+        grid.set_seat(s_dict["row_number"], s_dict["column_letter"], s_dict)
+    return grid
 
 
 # Initialize database and graph at startup
@@ -120,9 +146,9 @@ async def lifespan(app: FastAPI):
     # Shutdown
 
 app = FastAPI(
-    title="AeroSeat Intelligence API",
+    title="X Airways Intelligence API",
     description="Full-stack airline seat-reservation and Data Structures & Algorithms demonstration engine.",
-    version="1.0.0",
+    version="1.1.0",
     lifespan=lifespan
 )
 
@@ -146,10 +172,28 @@ def generate_pnr() -> str:
 # ==========================================
 
 @app.get("/api/flights", response_model=List[FlightModel])
-def get_flights():
+def get_flights(
+    origin: Optional[str] = Query(None, description="Origin airport code e.g. DXB"),
+    destination: Optional[str] = Query(None, description="Destination airport code e.g. JFK")
+):
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM flights ORDER BY flight_number")
+    query = "SELECT * FROM flights"
+    params = []
+    conditions = []
+
+    if origin:
+        conditions.append("origin = ?")
+        params.append(origin.strip().upper())
+    if destination:
+        conditions.append("destination = ?")
+        params.append(destination.strip().upper())
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
+    query += " ORDER BY flight_number"
+    cursor.execute(query, tuple(params))
     flights = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return flights
@@ -181,6 +225,52 @@ def get_flight_seats(flight_id: str):
     if not rows:
         raise HTTPException(status_code=404, detail="No seats found for this flight")
     return [dict(row) for row in rows]
+
+
+# ==========================================
+# 2D ARRAY SEAT GRID ENDPOINTS (CO2)
+# ==========================================
+
+@app.get("/api/dsa/seat-grid/{flight_id}")
+def get_flight_seat_grid(flight_id: str):
+    """
+    Returns the 2D array representation of aircraft cabin seats.
+    Demonstrates O(1) row-major coordinate access and matrix memory organization.
+    """
+    grid = build_seat_grid_for_flight(flight_id)
+    return {
+        "flight_id": flight_id,
+        "metrics": grid.get_metrics(),
+        "columns": grid.columns,
+        "min_row": grid.min_row,
+        "max_row": grid.max_row,
+        "matrix": grid.to_matrix_representation()
+    }
+
+
+@app.post("/api/dsa/seat-grid/allocate")
+def allocate_seat_grid(req: Dict[str, Any]):
+    """Demonstrates pure O(1) 2D array seat allocation."""
+    flight_id = req.get("flight_id", "FL-201")
+    row_num = int(req.get("row_number", 15))
+    col_letter = req.get("column_letter", "A").upper()
+    passenger_name = req.get("passenger_name", "Matrix Passenger")
+    pnr = req.get("pnr", "EKTEST")
+
+    grid = build_seat_grid_for_flight(flight_id)
+    seat = grid.get_seat(row_num, col_letter)
+    if not seat:
+        raise HTTPException(status_code=404, detail=f"Seat {row_num}{col_letter} does not exist in 2D grid")
+
+    success = grid.allocate(row_num, col_letter, passenger_name, pnr)
+    return {
+        "success": success,
+        "row_number": row_num,
+        "column_letter": col_letter,
+        "matrix_indices": f"grid[{row_num - grid.min_row}][{grid.col_to_idx[col_letter]}]",
+        "time_complexity": "O(1) Constant Time Matrix Indexing",
+        "seat_state": grid.get_seat(row_num, col_letter)
+    }
 
 
 # ==========================================
@@ -253,13 +343,24 @@ def create_reservation(req: ReservationCreateRequest):
 
     # Step 2: Generate unique PNR and insert
     pnr = generate_pnr()
-    # Ensure PNR collision prevention
     while bst_index.search(pnr) is not None:
         pnr = generate_pnr()
 
     prefs_str = json.dumps(req.preferences.model_dump()) if req.preferences else "{}"
 
-    cursor.execute("UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ?", (req.flight_id, req.seat_number))
+    # Atomic claim: only one concurrent session can flip AVAILABLE → RESERVED
+    cursor.execute("BEGIN IMMEDIATE")
+    cursor.execute(
+        "UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ? AND status = 'AVAILABLE'",
+        (req.flight_id, req.seat_number),
+    )
+    if cursor.rowcount != 1:
+        conn.rollback()
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Seat {req.seat_number} is already reserved. Please select another seat or join the waitlist.",
+        )
     cursor.execute("""
         INSERT INTO reservations (pnr, flight_id, seat_number, passenger_name, passenger_email, preferences_json, status)
         VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMED')
@@ -268,7 +369,8 @@ def create_reservation(req: ReservationCreateRequest):
     cursor.execute("UPDATE flights SET available_seats = available_seats - 1 WHERE id = ?", (req.flight_id,))
 
     cursor.execute("""
-        SELECT r.*, f.flight_number, f.origin, f.destination, f.departure_time, s.cabin_class
+        SELECT r.*, f.flight_number, f.origin, f.origin_city, f.destination, f.destination_city,
+               f.departure_time, f.arrival_time, f.duration, f.aircraft_type, s.cabin_class
         FROM reservations r
         JOIN flights f ON r.flight_id = f.id
         JOIN seats s ON r.flight_id = s.flight_id AND r.seat_number = s.seat_number
@@ -296,6 +398,94 @@ def create_reservation(req: ReservationCreateRequest):
     return res_dict
 
 
+@app.post("/api/reservations/batch", response_model=List[ReservationResponse])
+def create_batch_reservations(req: MultiPassengerReservationRequest):
+    """
+    Creates multiple passenger reservations atomically in a single ACID transaction.
+    Prevents duplicate seat bookings and generates distinct PNRs.
+    """
+    if not req.items:
+        raise HTTPException(status_code=400, detail="Reservation batch cannot be empty")
+
+    # Check for duplicate seat requests within the payload
+    requested_seats = [item.seat_number for item in req.items]
+    if len(requested_seats) != len(set(requested_seats)):
+        raise HTTPException(status_code=400, detail="Duplicate seat numbers within the same booking request.")
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("BEGIN IMMEDIATE")
+
+    # Verify all seats are available under a write lock
+    for item in req.items:
+        cursor.execute("SELECT * FROM seats WHERE flight_id = ? AND seat_number = ?", (req.flight_id, item.seat_number))
+        st = cursor.fetchone()
+        if not st:
+            conn.rollback()
+            conn.close()
+            raise HTTPException(status_code=404, detail=f"Seat {item.seat_number} not found on flight {req.flight_id}")
+        if st["status"] != "AVAILABLE":
+            conn.rollback()
+            conn.close()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Seat {item.seat_number} is already {st['status'].lower()}."
+            )
+
+    results: List[Dict[str, Any]] = []
+
+    # Process all reservations atomically
+    for item in req.items:
+        pnr = generate_pnr()
+        while bst_index.search(pnr) is not None:
+            pnr = generate_pnr()
+
+        prefs_str = json.dumps(item.preferences.model_dump()) if item.preferences else "{}"
+        cursor.execute(
+            "UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ? AND status = 'AVAILABLE'",
+            (req.flight_id, item.seat_number),
+        )
+        if cursor.rowcount != 1:
+            conn.rollback()
+            conn.close()
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Seat {item.seat_number} was claimed by another session.",
+            )
+        cursor.execute("""
+            INSERT INTO reservations (pnr, flight_id, seat_number, passenger_name, passenger_email, preferences_json, status)
+            VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMED')
+        """, (pnr, req.flight_id, item.seat_number, item.passenger_name, item.passenger_email, prefs_str))
+
+        cursor.execute("UPDATE flights SET available_seats = available_seats - 1 WHERE id = ?", (req.flight_id,))
+
+        cursor.execute("""
+            SELECT r.*, f.flight_number, f.origin, f.origin_city, f.destination, f.destination_city,
+                   f.departure_time, f.arrival_time, f.duration, f.aircraft_type, s.cabin_class
+            FROM reservations r
+            JOIN flights f ON r.flight_id = f.id
+            JOIN seats s ON r.flight_id = s.flight_id AND r.seat_number = s.seat_number
+            WHERE r.pnr = ?
+        """, (pnr,))
+        res_data = dict(cursor.fetchone())
+        results.append(res_data)
+
+        # Update BST & Undo
+        bst_index.insert(pnr, res_data)
+        undo_stack.push({
+            "action_type": "BOOKING_CREATE",
+            "pnr": pnr,
+            "flight_id": req.flight_id,
+            "seat_number": item.seat_number,
+            "passenger_name": item.passenger_name,
+            "description": f"Group booking {pnr} for {item.passenger_name} in seat {item.seat_number}"
+        })
+
+    conn.commit()
+    conn.close()
+    return results
+
+
 @app.get("/api/reservations/{pnr}")
 def get_reservation(pnr: str, last_name: Optional[str] = None):
     pnr_clean = pnr.strip().upper()
@@ -306,7 +496,9 @@ def get_reservation(pnr: str, last_name: Optional[str] = None):
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT r.*, f.flight_number, f.origin, f.origin_city, f.destination, f.destination_city, f.departure_time, f.arrival_time, f.aircraft_type, s.cabin_class, s.category, s.pitch_inches, s.price
+        SELECT r.*, f.flight_number, f.origin, f.origin_city, f.destination, f.destination_city,
+               f.departure_time, f.arrival_time, f.duration, f.aircraft_type, s.cabin_class, s.category,
+               s.pitch_inches, s.price
         FROM reservations r
         JOIN flights f ON r.flight_id = f.id
         JOIN seats s ON r.flight_id = s.flight_id AND r.seat_number = s.seat_number
@@ -326,6 +518,87 @@ def get_reservation(pnr: str, last_name: Optional[str] = None):
 
     res_data["bst_lookup_path"] = path
     return res_data
+
+
+@app.post("/api/reservations/{pnr}/modify-seat")
+def modify_reservation_seat(pnr: str, req: ModifySeatRequest):
+    """
+    Modifies the assigned seat for an active reservation.
+    Validates new seat availability, performs swap, updates BST, and logs to UndoStack.
+    """
+    pnr_clean = pnr.strip().upper()
+    new_seat_clean = req.new_seat_number.strip().upper()
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM reservations WHERE pnr = ?", (pnr_clean,))
+    res = cursor.fetchone()
+    if not res:
+        conn.close()
+        raise HTTPException(status_code=404, detail="Reservation not found")
+
+    if res["status"] != "CONFIRMED":
+        conn.close()
+        raise HTTPException(status_code=400, detail="Only confirmed reservations can modify seats")
+
+    old_seat = res["seat_number"]
+    flight_id = res["flight_id"]
+
+    if old_seat == new_seat_clean:
+        conn.close()
+        return {"message": f"Seat is already {new_seat_clean}", "pnr": pnr_clean, "seat_number": new_seat_clean}
+
+    # Verify new seat is available
+    cursor.execute("SELECT * FROM seats WHERE flight_id = ? AND seat_number = ?", (flight_id, new_seat_clean))
+    new_st = cursor.fetchone()
+    if not new_st:
+        conn.close()
+        raise HTTPException(status_code=404, detail=f"Seat {new_seat_clean} not found on this flight")
+    if new_st["status"] != "AVAILABLE":
+        conn.close()
+        raise HTTPException(status_code=409, detail=f"Seat {new_seat_clean} is already {new_st['status'].lower()}")
+
+    # Perform atomic swap
+    cursor.execute("UPDATE seats SET status = 'AVAILABLE' WHERE flight_id = ? AND seat_number = ?", (flight_id, old_seat))
+    cursor.execute("UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ?", (flight_id, new_seat_clean))
+    cursor.execute("UPDATE reservations SET seat_number = ? WHERE pnr = ?", (new_seat_clean, pnr_clean))
+    conn.commit()
+
+    # Re-fetch updated reservation
+    cursor.execute("""
+        SELECT r.*, f.flight_number, f.origin, f.origin_city, f.destination, f.destination_city,
+               f.departure_time, f.arrival_time, f.duration, f.aircraft_type, s.cabin_class, s.category,
+               s.pitch_inches, s.price
+        FROM reservations r
+        JOIN flights f ON r.flight_id = f.id
+        JOIN seats s ON r.flight_id = s.flight_id AND r.seat_number = s.seat_number
+        WHERE r.pnr = ?
+    """, (pnr_clean,))
+    updated_row = dict(cursor.fetchone())
+    conn.close()
+
+    # Update BST
+    bst_index.insert(pnr_clean, updated_row)
+
+    # Log to undo stack
+    undo_stack.push({
+        "action_type": "SEAT_MODIFY",
+        "pnr": pnr_clean,
+        "flight_id": flight_id,
+        "old_seat": old_seat,
+        "new_seat": new_seat_clean,
+        "passenger_name": res["passenger_name"],
+        "description": f"Modified seat for {pnr_clean} from {old_seat} to {new_seat_clean}"
+    })
+
+    return {
+        "pnr": pnr_clean,
+        "old_seat": old_seat,
+        "new_seat": new_seat_clean,
+        "reservation": updated_row,
+        "message": f"Seat successfully updated from {old_seat} to {new_seat_clean}"
+    }
 
 
 @app.post("/api/reservations/{pnr}/cancel")
@@ -355,7 +628,7 @@ def cancel_reservation(pnr: str):
     conn.commit()
     conn.close()
 
-    # Update BST (Delete node or mark cancelled)
+    # Update BST (Delete node)
     bst_index.delete(pnr_clean)
 
     # Push to undo stack
@@ -410,13 +683,11 @@ def undo_last_operation():
         flight_id = last_action["flight_id"]
         seat_number = last_action["seat_number"]
 
-        # Rollback: mark cancelled and release seat
         cursor.execute("UPDATE reservations SET status = 'CANCELLED' WHERE pnr = ?", (pnr,))
         cursor.execute("UPDATE seats SET status = 'AVAILABLE' WHERE flight_id = ? AND seat_number = ?", (flight_id, seat_number))
         cursor.execute("UPDATE flights SET available_seats = available_seats + 1 WHERE id = ?", (flight_id,))
         conn.commit()
 
-        # Revert BST
         bst_index.delete(pnr)
         conn.close()
 
@@ -431,12 +702,10 @@ def undo_last_operation():
         flight_id = last_action["flight_id"]
         seat_number = last_action["seat_number"]
 
-        # Check if seat is still available to be re-reserved
         cursor.execute("SELECT status FROM seats WHERE flight_id = ? AND seat_number = ?", (flight_id, seat_number))
         seat_row = cursor.fetchone()
         if not seat_row or seat_row["status"] != "AVAILABLE":
             conn.close()
-            # Push back to stack to prevent state corruption
             undo_stack.push(last_action)
             raise HTTPException(status_code=409, detail=f"Cannot undo cancellation: Seat {seat_number} has been re-booked.")
 
@@ -445,7 +714,6 @@ def undo_last_operation():
         cursor.execute("UPDATE flights SET available_seats = available_seats - 1 WHERE id = ?", (flight_id,))
         conn.commit()
 
-        # Re-insert into BST
         cursor.execute("""
             SELECT r.*, f.flight_number, f.origin, f.destination, s.cabin_class
             FROM reservations r
@@ -462,6 +730,43 @@ def undo_last_operation():
         return {
             "undone_action": last_action,
             "message": f"Successfully reversed cancellation of booking {pnr}. Seat {seat_number} is restored to Reserved.",
+            "current_stack_size": undo_stack.size()
+        }
+
+    elif action_type == "SEAT_MODIFY":
+        pnr = last_action["pnr"]
+        flight_id = last_action["flight_id"]
+        old_seat = last_action["old_seat"]
+        new_seat = last_action["new_seat"]
+
+        # Check if old_seat is still available
+        cursor.execute("SELECT status FROM seats WHERE flight_id = ? AND seat_number = ?", (flight_id, old_seat))
+        old_st_row = cursor.fetchone()
+        if not old_st_row or old_st_row["status"] != "AVAILABLE":
+            conn.close()
+            undo_stack.push(last_action)
+            raise HTTPException(status_code=409, detail=f"Cannot undo seat change: Previous seat {old_seat} is occupied.")
+
+        cursor.execute("UPDATE seats SET status = 'AVAILABLE' WHERE flight_id = ? AND seat_number = ?", (flight_id, new_seat))
+        cursor.execute("UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ?", (flight_id, old_seat))
+        cursor.execute("UPDATE reservations SET seat_number = ? WHERE pnr = ?", (old_seat, pnr))
+        conn.commit()
+
+        cursor.execute("""
+            SELECT r.*, f.flight_number, f.origin, f.destination, s.cabin_class
+            FROM reservations r
+            JOIN flights f ON r.flight_id = f.id
+            JOIN seats s ON r.flight_id = s.flight_id AND r.seat_number = s.seat_number
+            WHERE r.pnr = ?
+        """, (pnr,))
+        up_row = cursor.fetchone()
+        conn.close()
+        if up_row:
+            bst_index.insert(pnr, dict(up_row))
+
+        return {
+            "undone_action": last_action,
+            "message": f"Successfully reverted seat change for {pnr} back to {old_seat}.",
             "current_stack_size": undo_stack.size()
         }
 
@@ -661,4 +966,3 @@ frontend_dist_path = os.path.abspath(
 )
 if os.path.exists(frontend_dist_path):
     app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
-

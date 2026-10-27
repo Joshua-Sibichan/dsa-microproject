@@ -121,10 +121,5 @@ CREATE TABLE IF NOT EXISTS waitlist (
 ### 2.3 Frontend Architecture (`/frontend`)
 Built with **React 18 + TypeScript + Vite + Tailwind CSS**:
 - **State Management**: Reactive custom hooks + lightweight contextual stores for Flight, Active Cabin, Current Selection, Undo Stack, and Live DSA state.
-- **Routing**: Seamless multi-tab navigation:
-  - `/` (Home & Flight Search)
-  - `/book` (Interactive Cabin Seat Reservation & Recommendation)
-  - `/manage` (PNR Booking Retrieval & Seat Modification / Cancellation)
-  - `/dsa` (Comprehensive DSA Visualizer Hub & Course Outcome Lab)
-  - `/arena` (Algorithm Arena & Performance Benchmarking)
+- **Navigation**: Client-side tabs switch between the reservation workspace, manage-booking portal, DSA Hub, and Algorithm Arena without requiring a router.
 - **Visualizer Engine**: Custom SVG and Canvas vector components rendering queues, stacks, trees, and graphs with animated transitions.

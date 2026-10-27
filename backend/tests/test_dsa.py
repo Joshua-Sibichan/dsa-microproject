@@ -276,3 +276,46 @@ def test_group_seating_finder():
     assert res["found"] is True
     assert res["row"] == 19
     assert res["seat_numbers"] == ["19A", "19B", "19C"]
+
+
+# ==========================================
+# CO2: 2D ARRAY SEAT GRID TESTS
+# ==========================================
+
+def test_seat_grid_2d_operations():
+    from app.dsa.seat_grid_2d import SeatGrid2D
+    grid = SeatGrid2D(min_row=1, max_row=26)
+
+    # Initialize seats
+    grid.set_seat(15, "A", {"seat_number": "15A", "status": "AVAILABLE", "cabin_class": "ECONOMY"})
+    grid.set_seat(15, "B", {"seat_number": "15B", "status": "AVAILABLE", "cabin_class": "ECONOMY"})
+    grid.set_seat(15, "C", {"seat_number": "15C", "status": "AVAILABLE", "cabin_class": "ECONOMY"})
+
+    # O(1) Lookup
+    seat_15a = grid.get_seat(15, "A")
+    assert seat_15a is not None
+    assert seat_15a["status"] == "AVAILABLE"
+
+    # O(1) Allocation
+    allocated = grid.allocate(15, "A", "John Doe", "EKTEST1")
+    assert allocated is True
+    assert grid.get_seat(15, "A")["status"] == "RESERVED"
+
+    # Cannot double-allocate
+    assert grid.allocate(15, "A", "Jane Doe", "EKTEST2") is False
+
+    # O(1) Deallocation
+    deallocated = grid.deallocate(15, "A")
+    assert deallocated is True
+    assert grid.get_seat(15, "A")["status"] == "AVAILABLE"
+
+    # Contiguous block search on 2D array
+    block = grid.find_contiguous_block(group_size=2, cabin_class="ECONOMY")
+    assert block is not None
+    assert len(block) == 2
+    assert [s["seat_number"] for s in block] == ["15A", "15B"]
+
+    # Metrics
+    metrics = grid.get_metrics()
+    assert metrics["configured_seats"] == 3
+    assert metrics["occupied_seats"] == 0

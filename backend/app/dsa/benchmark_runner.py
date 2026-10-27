@@ -51,7 +51,7 @@ class BenchmarkRunner:
         success_rate_a = (len(assigned_a) / len(passenger_profiles)) * 100.0
         avg_score_a = (score_sum_a / len(assigned_a)) if assigned_a else 0.0
 
-        # 2. Preference-Based Optimization Strategy (AeroSeat Intelligence)
+        # 2. Preference-Based Optimization Strategy (X Airways Intelligence)
         inventory_b = [dict(s) for s in candidate_seats]
         start_b = time.perf_counter_ns()
         assigned_b = []
@@ -90,7 +90,7 @@ class BenchmarkRunner:
                 "description": "Allocates the very first unoccupied eligible seat found in linear scan."
             },
             "preference_scored_strategy": {
-                "name": "AeroSeat Intelligence (Multi-Factor MergeSort)",
+                "name": "X Airways Intelligence (Multi-Factor MergeSort)",
                 "success_rate_pct": round(success_rate_b, 1),
                 "successful_allocations": len(assigned_b),
                 "average_preference_score": round(avg_score_b, 1),

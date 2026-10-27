@@ -1,189 +1,240 @@
 import React from 'react';
-import { Seat, Flight, PassengerProfile, Reservation } from '../types';
-import { Plane, CheckCircle2, Ticket, ShieldCheck, QrCode } from 'lucide-react';
+import { Seat, Flight, PassengerProfile, Reservation, PassengerBookingItem } from '../types';
 
 interface BookingSummaryProps {
   selectedFlight: Flight | null;
   selectedSeat: Seat | null;
   passenger: PassengerProfile;
+  passengers?: PassengerBookingItem[];
+  selectedSeatsByPassenger?: Record<number, Seat>;
+  selectedCabinClass?: string;
   onConfirmBooking: () => void;
   loading: boolean;
-  latestReservation: Reservation | null;
+  latestReservations?: Reservation[];
 }
 
 export const BookingSummary: React.FC<BookingSummaryProps> = ({
   selectedFlight,
   selectedSeat,
   passenger,
+  passengers = [],
+  selectedSeatsByPassenger = {},
+  selectedCabinClass = 'ECONOMY',
   onConfirmBooking,
   loading,
-  latestReservation
 }) => {
-  const baseFare = 380.0;
-  const seatFee = selectedSeat ? selectedSeat.price : 0.0;
-  const totalFare = baseFare + seatFee;
+  // Cabin Class Multiplier
+  const getFareForCabin = (baseFare: number, cabin: string): number => {
+    switch (cabin) {
+      case 'FIRST': return Math.round(baseFare * 5.2);
+      case 'BUSINESS': return Math.round(baseFare * 2.8);
+      case 'PREMIUM_ECONOMY': return Math.round(baseFare * 1.6);
+      case 'ECONOMY':
+      default: return Math.round(baseFare);
+    }
+  };
+
+  const singleBaseFare = getFareForCabin(selectedFlight?.base_fare || 450.0, selectedCabinClass);
+  const passengerCount = Math.max(1, passengers.length);
+  const totalBaseFare = singleBaseFare * passengerCount;
+
+  // Compute total seat fees
+  let totalSeatFees = 0;
+  if (passengers.length > 0) {
+    Object.values(selectedSeatsByPassenger).forEach((s) => {
+      if (s) totalSeatFees += s.price;
+    });
+  } else if (selectedSeat) {
+    totalSeatFees = selectedSeat.price;
+  }
+
+  const grandTotal = totalBaseFare + totalSeatFees;
+  const assignedCount = Object.keys(selectedSeatsByPassenger).length;
+  const allAssigned = passengers.length > 0
+    ? passengers.every((_, idx) => !!selectedSeatsByPassenger[idx])
+    : !!selectedSeat;
+
+  // Find inspected seat (first selected or active)
+  const inspectedSeat: Seat | null =
+    selectedSeatsByPassenger[0] || selectedSeat || (passengers[0] && selectedSeatsByPassenger[0]) || null;
 
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/90 space-y-6">
-      <div>
-        <span className="text-xs font-mono font-bold tracking-wider text-[#C7A66A] uppercase">Itinerary Summary</span>
-        <h2 className="text-xl font-bold text-[#10243A]">Booking Confirmation</h2>
-        <p className="text-xs text-slate-500 mt-0.5">Review passenger and seat assignment before confirming</p>
-      </div>
-
-      {/* Flight Mini-Leg */}
-      {selectedFlight && (
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="font-mono font-bold text-sm text-[#10243A]">{selectedFlight.flight_number}</span>
-            <span className="text-xs font-semibold text-slate-500">{selectedFlight.aircraft_type}</span>
+    <div className="sticky top-28 space-y-4">
+      {/* Active Seat Inspector Card */}
+      <div className="bg-surface-container-lowest rounded-2xl p-5 sm:p-6 shadow-md border border-border-subtle">
+        {/* Header of Inspector Card */}
+        <div className="flex items-start justify-between pb-3">
+          <div>
+            <span className="text-[10px] uppercase font-bold tracking-wider text-secondary block">
+              Seat Reservation Review
+            </span>
+            <h3 className="font-serif text-xl sm:text-2xl font-bold text-slate-navy">
+              {inspectedSeat ? `Seat ${inspectedSeat.seat_number}` : 'Select a Seat'}
+            </h3>
+            <p className="text-xs text-charcoal-muted">
+              {inspectedSeat
+                ? `${inspectedSeat.category} • ${inspectedSeat.cabin_class.replace('_', ' ')}`
+                : `${selectedCabinClass.replace('_', ' ')} Deck`}
+            </p>
           </div>
-
-          <div className="flex items-center justify-between text-xs">
-            <div>
-              <div className="font-bold text-slate-800 text-sm">{selectedFlight.origin}</div>
-              <div className="text-slate-500">{selectedFlight.departure_time}</div>
-            </div>
-            <Plane className="w-4 h-4 text-[#C7A66A] transform rotate-90" />
-            <div className="text-right">
-              <div className="font-bold text-slate-800 text-sm">{selectedFlight.destination}</div>
-              <div className="text-slate-500">{selectedFlight.arrival_time}</div>
-            </div>
+          <div className="w-10 h-10 rounded-full bg-crimson-light text-primary flex items-center justify-center font-bold">
+            <span className="material-symbols-outlined text-[20px]">airline_seat_individual_suite</span>
           </div>
         </div>
-      )}
 
-      {/* Selected Seat Details */}
-      <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-200/60">
-        <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Assigned Seat</div>
-        {selectedSeat ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-xl bg-[#2563EB] text-white font-mono font-bold text-lg flex items-center justify-center shadow-md">
-                {selectedSeat.seat_number}
-              </div>
-              <div>
-                <div className="text-sm font-bold text-slate-900">{selectedSeat.cabin_class} Class</div>
-                <div className="text-xs text-slate-600">{selectedSeat.category.replace('_', ' ')} • {selectedSeat.pitch_inches}" pitch</div>
-              </div>
-            </div>
-            <span className="font-mono text-sm font-bold text-[#2563EB]">
-              {selectedSeat.price > 0 ? `+$${selectedSeat.price.toFixed(2)}` : 'Complimentary'}
+        {/* 3D Cabin Atmosphere Preview Photo */}
+        <div className="w-full h-40 rounded-xl overflow-hidden relative shadow-sm my-3 border border-border-subtle">
+          <img
+            alt="X Airways Airbus A380 luxurious Business Class cabin interior featuring polished wood veneers and lie-flat seating."
+            className="w-full h-full object-cover"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0_NDTGV8nRQwE3B7uu6XmhNBiMhAN0VIyTCrr-78qEN3wNFnhZMsJJCrnvJETMbaZ71VbwcRQkRextDRluPMe78HDH6_n5ukaAz-XaJX9MIFoDAhap9n1N1Q06T6CQfuQocAGVTB7HK4T_5n_HRNA5rHit5t_Xvb4NXWKSeVQhFZD8WwGnboJbXT5YsAGqDu4UcbLSYCHwQP5-L1dR8WxcKntXgkhrtc37GsRQWW6CTBd2ms_052w"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-navy/80 via-transparent to-transparent"></div>
+          <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-white text-[11px]">
+            <span className="flex items-center gap-1 font-semibold text-secondary-container">
+              <span className="material-symbols-outlined text-[15px]">view_in_ar</span>
+              <span>3D Inflight View</span>
+            </span>
+            <span className="bg-slate-navy/80 px-2 py-0.5 rounded text-gold-light text-[10px] font-mono">
+              {selectedFlight ? `${selectedFlight.flight_number} • ${selectedFlight.aircraft_type}` : 'Flagship Fleet'}
             </span>
           </div>
-        ) : (
-          <div className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-lg border border-amber-200">
-            ⚠️ No seat selected yet. Click an available seat on the cabin map or use the AI Recommender.
+        </div>
+
+        {/* Ergonomic Specifications Checklist */}
+        <div className="space-y-2 py-2 border-y border-border-subtle">
+          <h4 className="text-[10px] uppercase font-bold tracking-wider text-slate-navy">
+            Cabin Privileges &amp; Ergonomics
+          </h4>
+          <div className="space-y-1.5 text-xs text-slate-navy">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] text-secondary">king_bed</span>
+              <span>
+                <strong>
+                  {selectedCabinClass === 'FIRST'
+                    ? 'Private Enclosed Suite with Sliding Doors'
+                    : selectedCabinClass === 'BUSINESS'
+                      ? '78" Fully Flat Bed with Soft Mattress'
+                      : 'Ergonomic Contoured Seat with Adjustable Headrest'}
+                </strong>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] text-secondary">tv</span>
+              <span>
+                <strong>6,500+ ice Channels</strong> on HD personal display
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] text-secondary">restaurant</span>
+              <span>
+                <strong>Gourmet Multi-Course Dining</strong> &amp; Sommelier selection
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-[16px] text-secondary">wifi</span>
+              <span>
+                <strong>Complimentary Onboard Wi-Fi</strong> for X Airways members
+              </span>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Passenger Manifest */}
-      <div className="text-xs space-y-1.5 pt-2 border-t border-slate-100">
-        <div className="flex justify-between">
-          <span className="text-slate-500">Passenger:</span>
-          <span className="font-semibold text-slate-800">{passenger.name || 'Anonymous Traveler'}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Contact:</span>
-          <span className="font-mono text-slate-800">{passenger.email || 'passenger@aero.org'}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Fare Base:</span>
-          <span className="font-mono text-slate-800">${baseFare.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Seat Reservation Fee:</span>
-          <span className="font-mono text-slate-800">${seatFee.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between pt-2 border-t border-slate-200 text-sm font-bold text-[#10243A]">
-          <span>Total Fare:</span>
-          <span className="font-mono text-base">${totalFare.toFixed(2)}</span>
-        </div>
-      </div>
 
-      {/* Confirm Button */}
-      <button
-        type="button"
-        disabled={!selectedSeat || loading}
-        onClick={onConfirmBooking}
-        className={`w-full py-4 rounded-2xl font-bold text-sm tracking-wide uppercase transition-all shadow-md flex items-center justify-center space-x-2 ${
-          selectedSeat && !loading
-            ? 'bg-[#C7A66A] hover:bg-[#d8b97c] text-[#10243A] hover:shadow-lg'
-            : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-        }`}
-      >
-        <ShieldCheck className="w-5 h-5" />
-        <span>{loading ? 'Confirming Reservation...' : 'Confirm Seat Reservation'}</span>
-      </button>
-
-      {/* Real-time Generated Boarding Pass Preview */}
-      {latestReservation && (
-        <div className="mt-6 pt-6 border-t border-slate-200 animate-in fade-in duration-300">
-          <div className="bg-[#10243A] text-white rounded-3xl p-6 shadow-xl relative overflow-hidden border border-navy-800">
-            
-            {/* Watermark Crest */}
-            <div className="absolute right-[-20px] top-[-20px] opacity-10">
-              <Plane className="w-40 h-40 text-white" />
-            </div>
-
-            <div className="flex items-center justify-between pb-4 border-b border-navy-800 relative z-10">
-              <div>
-                <span className="text-[10px] font-mono tracking-widest text-[#C7A66A] font-bold uppercase">Official Boarding Pass</span>
-                <h3 className="font-serif text-lg font-bold">AeroSeat Express</h3>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-slate-400 uppercase">Booking Reference (PNR)</span>
-                <div className="font-mono text-xl font-bold text-[#C7A66A]">{latestReservation.pnr}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 my-4 relative z-10 text-xs">
-              <div>
-                <span className="text-slate-400 block text-[10px]">PASSENGER</span>
-                <span className="font-bold text-sm text-white">{latestReservation.passenger_name}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px]">FLIGHT</span>
-                <span className="font-bold text-sm font-mono text-white">{latestReservation.flight_number || 'EK-201'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px]">ROUTE</span>
-                <span className="font-bold text-sm text-white">{latestReservation.origin || 'DXB'} → {latestReservation.destination || 'JFK'}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px]">SEAT / CLASS</span>
-                <span className="font-bold text-sm font-mono text-[#C7A66A]">
-                  {latestReservation.seat_number} ({latestReservation.cabin_class || 'ECONOMY'})
+        {/* Assigned Passenger Badges */}
+        <div className="bg-surface-container-low p-3 rounded-xl mt-3 space-y-1.5">
+          <label className="text-[10px] font-bold uppercase tracking-wider text-charcoal-muted block">
+            Passenger Seat Allocations ({assignedCount}/{passengerCount})
+          </label>
+          {passengers.map((p, idx) => {
+            const s = selectedSeatsByPassenger[idx];
+            return (
+              <div key={idx} className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-primary-container text-white text-[10px] font-bold flex items-center justify-center">
+                    {p.firstName ? p.firstName[0].toUpperCase() : idx + 1}
+                  </span>
+                  <span className="font-semibold text-slate-navy">
+                    {p.name || `${p.firstName || 'Traveler'} ${p.lastName || idx + 1}`.trim()}
+                  </span>
+                </div>
+                <span className={`font-mono font-bold ${s ? 'text-primary' : 'text-charcoal-muted italic'}`}>
+                  {s ? `Seat ${s.seat_number} (+$${s.price})` : 'Unassigned'}
                 </span>
               </div>
-            </div>
+            );
+          })}
+        </div>
 
-            {/* Simulated Barcode / QR */}
-            <div className="pt-4 border-t border-dashed border-navy-800 flex items-center justify-between relative z-10">
-              <div className="space-y-1">
-                <span className="text-[9px] font-mono text-slate-400 block">ENCRYPTED RESERVATION TOKEN</span>
-                <div className="h-6 w-36 bg-slate-700/80 rounded flex items-center px-2 space-x-1">
-                  <div className="w-1 h-4 bg-white"></div>
-                  <div className="w-2 h-4 bg-white"></div>
-                  <div className="w-1 h-4 bg-white"></div>
-                  <div className="w-3 h-4 bg-white"></div>
-                  <div className="w-1 h-4 bg-white"></div>
-                  <div className="w-2 h-4 bg-white"></div>
-                  <div className="w-1 h-4 bg-white"></div>
-                  <div className="w-2 h-4 bg-white"></div>
-                </div>
-              </div>
-              <div className="text-right text-[10px] text-emerald-400 flex items-center">
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                <span>CONFIRMED & INDEXED (BST)</span>
-              </div>
-            </div>
+        {/* Financial Summary & Breakdown */}
+        <div className="pt-4 space-y-2 text-xs">
+          <div className="flex items-center justify-between text-charcoal-muted">
+            <span>Base Itinerary Fare ({passengerCount} Traveler{passengerCount > 1 ? 's' : ''})</span>
+            <span className="font-semibold text-slate-navy">${totalBaseFare} USD</span>
+          </div>
 
+          <div className="flex items-center justify-between text-charcoal-muted">
+            <span>Seat Selection Surcharges</span>
+            <span className="font-semibold text-secondary">
+              {totalSeatFees > 0 ? `+$${totalSeatFees} USD` : '$0.00 (Tier Benefit)'}
+            </span>
+          </div>
+
+          <div className="pt-2 border-t border-border-subtle flex items-baseline justify-between">
+            <div>
+              <span className="text-xs font-bold text-slate-navy block">Grand Total Fare</span>
+              <p className="text-[10px] text-charcoal-muted">All taxes &amp; carrier surcharges inclusive</p>
+            </div>
+            <span className="font-serif text-2xl font-bold text-slate-navy">
+              ${grandTotal} <span className="text-xs font-sans font-normal text-charcoal-muted">USD</span>
+            </span>
           </div>
         </div>
-      )}
 
+        {/* Primary CTA */}
+        <div className="pt-4 space-y-2">
+          <button
+            type="button"
+            disabled={loading || !allAssigned}
+            onClick={onConfirmBooking}
+            className={`w-full py-3.5 px-4 rounded-xl font-serif text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.99] ${
+              allAssigned
+                ? 'bg-primary-container hover:bg-crimson-deep text-white cursor-pointer'
+                : 'bg-surface-container-high text-charcoal-muted cursor-not-allowed opacity-75'
+            }`}
+          >
+            <span>
+              {allAssigned
+                ? 'Review & Confirm Seat Reservations'
+                : `Assign Seats for All Travelers (${assignedCount}/${passengerCount})`}
+            </span>
+            <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+          </button>
+
+          {!allAssigned && (
+            <p className="text-[10px] text-primary text-center font-medium">
+              Click available seats on the map above to allocate seats for each traveler.
+            </p>
+          )}
+        </div>
+
+        {/* Reassurance Badge */}
+        <div className="mt-4 flex items-center gap-2 text-charcoal-muted text-[11px] bg-surface-container-low p-2.5 rounded-lg border border-border-subtle">
+          <span className="material-symbols-outlined text-[16px] text-gold-metallic">verified_user</span>
+          <span>Complimentary seat modifications permitted via Manage Booking.</span>
+        </div>
+      </div>
+
+      {/* X Airways Perks Mini Banner */}
+      <div className="bg-gradient-to-r from-slate-navy to-tertiary text-white rounded-xl p-4 shadow-sm flex items-center justify-between border border-white/10">
+        <div className="flex items-center gap-3">
+          <span className="material-symbols-outlined text-secondary-container text-[26px]">stars</span>
+          <div>
+            <p className="text-xs font-bold text-gold-light">X Airways Miles Guarantee</p>
+            <p className="text-[10px] text-surface-container-highest/80">Earn up to 14,200 Tier Miles on this reservation</p>
+          </div>
+        </div>
+        <span className="material-symbols-outlined text-surface-container-lowest/40">chevron_right</span>
+      </div>
     </div>
   );
 };

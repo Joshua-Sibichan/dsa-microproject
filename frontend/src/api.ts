@@ -1,13 +1,21 @@
 import {
   Flight, Seat, Reservation, RecommendationResult, GroupSeatingResult,
   WaitlistState, UndoAction, BSTSummary, GraphNetwork, BFSResult, GraphRouteResult,
-  PassengerProfile
+  PassengerProfile, SeatGridResponse
 } from './types';
 
 const BASE_URL = '/api';
 
-export async function fetchFlights(): Promise<Flight[]> {
-  const res = await fetch(`${BASE_URL}/flights`);
+export async function fetchFlights(origin?: string, destination?: string): Promise<Flight[]> {
+  let url = `${BASE_URL}/flights`;
+  const params: string[] = [];
+  if (origin) params.push(`origin=${encodeURIComponent(origin)}`);
+  if (destination) params.push(`destination=${encodeURIComponent(destination)}`);
+  if (params.length > 0) {
+    url += `?${params.join('&')}`;
+  }
+
+  const res = await fetch(url);
   if (!res.ok) throw new Error('Failed to load flights');
   return res.json();
 }
@@ -65,6 +73,28 @@ export async function createReservation(data: {
   return res.json();
 }
 
+export async function createBatchReservations(data: {
+  flight_id: string;
+  items: Array<{
+    flight_id: string;
+    seat_number: string;
+    passenger_name: string;
+    passenger_email: string;
+    preferences?: any;
+  }>;
+}): Promise<Reservation[]> {
+  const res = await fetch(`${BASE_URL}/reservations/batch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => ({}));
+    throw new Error(errorJson.detail || 'Batch reservation failed');
+  }
+  return res.json();
+}
+
 export async function retrieveReservation(pnr: string, lastName?: string): Promise<Reservation> {
   let url = `${BASE_URL}/reservations/${pnr}`;
   if (lastName) url += `?last_name=${encodeURIComponent(lastName)}`;
@@ -72,6 +102,19 @@ export async function retrieveReservation(pnr: string, lastName?: string): Promi
   if (!res.ok) {
     const errorJson = await res.json().catch(() => ({}));
     throw new Error(errorJson.detail || 'Booking not found');
+  }
+  return res.json();
+}
+
+export async function modifyReservationSeat(pnr: string, newSeatNumber: string): Promise<any> {
+  const res = await fetch(`${BASE_URL}/reservations/${pnr}/modify-seat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ new_seat_number: newSeatNumber })
+  });
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => ({}));
+    throw new Error(errorJson.detail || 'Seat modification failed');
   }
   return res.json();
 }
@@ -186,6 +229,31 @@ export async function calculateRoute(origin: string, destination: string): Promi
     body: JSON.stringify({ origin, destination })
   });
   if (!res.ok) throw new Error('Failed to calculate route');
+  return res.json();
+}
+
+export async function fetchSeatGrid(flightId: string): Promise<SeatGridResponse> {
+  const res = await fetch(`${BASE_URL}/dsa/seat-grid/${flightId}`);
+  if (!res.ok) throw new Error('Failed to fetch 2D seat grid');
+  return res.json();
+}
+
+export async function allocateSeatGrid(data: {
+  flight_id: string;
+  row_number: number;
+  column_letter: string;
+  passenger_name: string;
+  pnr: string;
+}): Promise<any> {
+  const res = await fetch(`${BASE_URL}/dsa/seat-grid/allocate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!res.ok) {
+    const errorJson = await res.json().catch(() => ({}));
+    throw new Error(errorJson.detail || 'Grid allocation failed');
+  }
   return res.json();
 }
 

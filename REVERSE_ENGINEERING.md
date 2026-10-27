@@ -1,67 +1,55 @@
-# AeroSeat Intelligence — Reverse Engineering Investigation Report
+# AeroSeat Intelligence — Reverse Engineering & Investigation Report
 
 ## Executive Summary
-This document records the empirical reverse-engineering investigation of the Emirates airline web application, specifically targeting flight booking, manage-booking, and seat-selection workflows. The goal is to inform the architectural design and user experience of **AeroSeat Intelligence**, a high-fidelity academic airline seat-reservation and Data Structures & Algorithms (DSA) demonstration platform.
+This document records a public, read-only investigation of the Emirates website (https://www.emirates.com/), specifically its flight-search, seat-selection information, aircraft seating-chart, and manage-booking workflows. The findings guide the original user experience and algorithm integration of **AeroSeat Intelligence**, an academic airline reservation and Data Structures & Algorithms (DSA) demonstration platform.
 
 ---
 
 ## 1. Target References Investigated
-- **Emirates Global Portal**: `https://www.emirates.com/`
+- **Emirates Global Portal**: `https://www.emirates.com/` (regional redirect: `/in/english/`)
+- **Flight Search Widget**: Live DOM analysis of departure/arrival selection, date pickers, passenger selectors, and cabin class filters.
 - **Seat Selection Experience**: `https://www.emirates.com/english/book/about-booking-online/emirates-seat-selection/`
 - **Interactive Seating Charts**: `https://www.emirates.com/english/experience/seating-charts/`
 - **Manage Booking Portal**: `https://www.emirates.com/english/manage-booking/`
 
-*Tooling Used*: Playwright browser automation MCP agent (`browser_navigate`, `browser_snapshot`, DOM introspection). Non-invasive passive inspection was maintained; no authentications were bypassed, and no live bookings or payments were initiated.
+*Investigation tooling and boundary (updated on `feature/emirates-seat-reservation-clone`)*: REA `capture_browser_scenario` against `emirates.com` was blocked by an access-restricted WAF page (evidence IDs and screenshots in `research/OBSERVED_WORKFLOW.md` / `research/emirates-rea/`). Public seat-selection, seating-charts, book, FAQ, and manage-booking documentation were fetched for workflow and seat-category behaviour. No login, live booking submission, payment, or private API was used. The booking UI on this branch is an original multi-step recreation of that documented workflow.
 
 ---
 
-## 2. Verified Observations vs. Assumptions
+## 2. Empirical Observations vs. AeroSeat Implementation
 
-| Domain | Verified Observations (Empirically Inspected) | Assumptions & Operational Inferences |
+| Domain | Emirates Live Observations (Empirically Verified) | AeroSeat Implementation Strategy |
 | :--- | :--- | :--- |
-| **Visual Architecture** | • Deep luxury palette: Deep navy header/footer (`#10243A` / `#222222`), pure white card surfaces, soft neutral backgrounds (`#F7F9FC`), gold/bronze badges (`#C7A66A`), emerald/teal for active/available elements, vivid blue for current selections.<br>• High-contrast typographic scale with bold serif/sans-serif headings and clean geometric body copy.<br>• Floating elevation cards with soft shadows (`box-shadow: 0 4px 20px rgba(0,0,0,0.08)`). | Cabin textures and 3D WebGL rendering engine likely leverage three.js or Babylon.js for their 3D aircraft view. For AeroSeat, an SVG + Canvas responsive interactive deck map provides predictable rendering and accessibility across devices. |
-| **Manage Booking Flow** | • Dual-field retrieval: **Last Name** (string, min 2 chars) + **Booking Reference / PNR** (alphanumeric string, standard 6-character format).<br>• Prominent primary CTA "Retrieve Booking".<br>• Clear error feedback when parameters are missing or invalid.<br>• Once loaded: shows passenger list, flight leg summary, and actionable tabs ("Select Seat", "Change Seat", "Cancel Flight", "Special Requests"). | Backend storage uses indexed PNR lookups. In our DSA module, this maps directly to a **Binary Search Tree** and **Hash Table** comparison for PNR retrieval (O(log n) vs O(1)). |
-| **Seat Classification** | • Distinct cabin tiers: First Class, Business Class, Premium Economy, Economy Class.<br>• Economy sub-categories:<br>  1. **Regular Seat**: Standard seat (Window, Middle, Aisle).<br>  2. **Preferred Seat**: Front rows of economy cabin or upper deck for priority disembarkation.<br>  3. **Twin Seat**: Two-seat rows at rear of wide-body aircraft (no middle seat).<br>  4. **Extra Legroom Seat**: Exit row seats with strict safety eligibility rules (e.g. age, physical ability).<br>  5. **Bassinet & Accessible Seats**: Designated for infants or mobility requirements. | Pricing logic dynamically adjusts seat fees based on fare class (Special, Saver, Flex, Flex Plus) and frequent flyer tier. AeroSeat implements deterministic scoring and allocation based on these exact seat attributes. |
-| **Seat Map Interaction** | • Deck switcher (Upper Deck vs Lower Deck on multi-deck aircraft such as A380).<br>• Clear visual legend: Available, Selected, Occupied, Bassinet, Accessible, Exit Row, Galley, Lavatory.<br>• Multi-passenger seat assignment banner pinning active passenger selector to current seat selection.<br>• Interactive seat nodes with hover states, row/column indicators (e.g., 12A, 12B, 12C \| Aisle \| 12D, 12E, 12F, 12G \| Aisle \| 12H, 12J, 12K). | Real-time seat locking uses WebSockets or short-polling session locks to prevent double-booking. AeroSeat enforces strict relational/in-memory concurrency locks with FIFO waitlisting upon conflict. |
-| **Security & Safety Rules** | • Extra Legroom seats have legal safety restrictions (exit row clearance).<br>• Infants require bassinet-adjacent seats.<br>• Unaccompanied minors require front-of-cabin placement near galley. | Safety constraints act as hard filters (pruning candidate sets) before soft preference optimization algorithms run. |
+| **Visual Architecture** | • The public page uses a premium airline presentation: a prominent booking module, large destination imagery, strong navigation hierarchy, and dense utility links.<br>• Its publicly observable page does not establish a private design-token system or internal implementation details. | Original AeroSeat tokens use navy, warm gold, white, teal, blue, and slate for a premium aviation feel without copying Emirates assets, logos, or components. |
+| **Flight Search & Selection** | • Prominent flight search widget with: Departure airport (IATA + City, e.g. DXB - Dubai), Arrival airport, travel dates, passenger count (Adults, Children, Infants), and Cabin Class (Economy, Premium Economy, Business, First).<br>• Results matrix displaying Flight Numbers (e.g. EK-201), non-stop vs layovers, departure/arrival times, explicit **Duration** (e.g., 14h 25m), Aircraft Type (Boeing 777-300ER, Airbus A380-800), available seats, and tier fares. | Dedicated flight search interface allowing users to filter by origin, destination, travel date, passenger count (1-4), and cabin class, displaying duration and dynamic fares with one-click selection. |
+| **Aircraft Seat Map** | • The public site links to Seat selection and Seating charts, and its fleet navigation lists Boeing 777, A380, and A350. Exact live inventory, pricing, and authenticated seat maps are deliberately outside this investigation. | Original CSS cabin map with representative 1-2-1, 2-4-2, and 3-4-3 zones; window/aisle positions; exit-row and bassinet markers; multi-passenger targeting; duplicate prevention; and live price totals. |
+| **Manage Booking Flow** | • Dual-field retrieval: **Last Name** (min 2 chars) + **Booking Reference / PNR** (6-character alphanumeric code, e.g., `EK` + 4 characters).<br>• Itinerary overview, seat change/modification, cancellation, special requests.<br>• Clear validation feedback and error states. | Dual-field retrieval powered by **Binary Search Tree (BST)** showing the exact comparison traversal path ($O(\log N)$). Displays boarding pass with simulated barcode, seat modification, cancellation, and waitlist auto-promotion. |
+| **Waitlist & Concurrency** | • When cabins or fare buckets sell out, passengers can join waitlists or alternate flights.<br>• In commercial aviation, GDS systems manage queue priorities. | Strict **FIFO Queue** managing passenger waitlists. When an occupied seat is cancelled, the head of the waitlist queue is automatically dequeued and offered/promoted to the newly released seat in $O(1)$ time. |
+| **State Reversibility** | • Complex transaction logs and Sabre/Amadeus ticketing locks. | Transparent **LIFO Stack** for booking history and undo operations, recording state deltas with rollback invariants. |
 
 ---
 
-## 3. Detailed Workflow Mapping
+## 3. Technology Stack Choice & Justification
 
-### Workflow A: Flight Selection & Passenger Onboarding
-1. User searches/selects flight origin, destination, departure date, and cabin class.
-2. User provides passenger manifest (e.g., Lead Passenger name, seat preferences: Window/Aisle/Legroom/Near Front/Avoid Middle, and group requirements).
-3. System verifies flight availability and initializes reservation draft.
+After inspecting the workspace and requirements, the most suitable, robust, and clean technology stack for this college DSA micro-project is:
 
-### Workflow B: Cabin Map Navigation & Seat Selection
-1. Aircraft cabin renders dynamically with fuselage frame, wings, exit doors, galleys, and lavatories.
-2. Seat status indicator states:
-   - **Available** (`#168C78` emerald teal)
-   - **Selected** (`#2563EB` royal electric blue with glowing outline)
-   - **Occupied** (`#A5AFBA` muted cool grey with padlock/crossed state)
-   - **Preferred / Extra Legroom** (`#C7A66A` aviation gold border/badge)
-3. Selection rules:
-   - Selecting an available seat transitions it to *Selected* and assigns it to the currently highlighted passenger.
-   - Clicking another passenger re-assigns active focus.
-   - Re-clicking the selected seat unselects it.
-   - Occupied seats trigger an informative toast: *"Seat XX is occupied. Enqueue for waitlist?"*
+1. **Frontend**:
+   - **React 18** with **TypeScript** for type safety and component-driven UI.
+   - **Vite** for fast modern bundling and hot module replacement.
+   - **Tailwind CSS** for responsive styling matching Emirates' luxury color palette (`#10243A` navy, `#C7A66A` gold, `#168C78` teal, `#2563EB` blue).
+   - **Lucide Icons** for aviation iconography (Plane, Ticket, Users, Clock, Calendar, QrCode, Shield, Layers, Sparkles).
 
-### Workflow C: Explainable Recommendation Engine
-1. User toggles "Recommend Best Seat".
-2. System evaluates available seats against user preferences (Window, Aisle, Extra Legroom, Low Pitch, Front Row) and outputs:
-   - Top candidate seat number.
-   - Total score (0–100%) and breakdown of weighted factors.
-   - Ranked alternative seats.
-   - Explanation cards (e.g., *"Matched: Window seat (+30), Front cabin row 12 (+20), Exit row legroom (+25)"*).
+2. **Backend**:
+   - **Python 3.14** with **FastAPI** for high-performance async REST API endpoints.
+   - **Pydantic v2** for rigorous schema validation.
+   - **SQLite** in WAL mode with foreign keys and unique constraints for ACID-compliant persistence and duplicate reservation prevention.
+   - **Uvicorn** ASGI server serving both backend APIs and the compiled frontend single-page application.
 
-### Workflow D: Booking Confirmation & Undo Capability
-1. User confirms reservation -> PNR (6-character booking code) is generated and added to the BST index and persistent SQLite database.
-2. Operational History Stack pushes reservation snapshot.
-3. User can trigger "Undo Last Operation" to revert reservation or swap seats safely without state corruption.
-
----
-
-## 4. Technical Constraints & Boundary Definition
-- **Commercial Boundary**: Live Emirates booking requires authentication, Skywards membership, payment gateway processing, Sabre/Amadeus GDS communication, and e-ticket issuance. These are omitted in favor of fictional, robust local simulated transactions.
-- **Academic Focus**: aeroSeat prioritizes algorithm transparency, deterministic execution profiling, clean architectural separation, and intuitive visual data structure inspection.
+3. **DSA Engine Architecture**:
+   - Implemented as pure, decoupled Python data structures with explicit time and space complexities:
+     - **2D Array / Matrix (`SeatGrid2D`)**: Direct $O(1)$ coordinate access `grid[row][col]`, contiguous 2D block search.
+     - **FIFO Queue (`WaitlistQueue`)**: $O(1)$ `enqueue()` and `dequeue()` for passenger waitlist handling.
+     - **LIFO Stack (`UndoStack`)**: $O(1)$ `push()` and `pop()` for reservation history and rollback.
+     - **Binary Search Tree (`BookingBST`)**: $O(\log N)$ average insertion, search, and deletion with Inorder, Preorder, and Postorder traversals.
+     - **Adjacency List Graph (`AirportGraph`)**: Breadth-First Search (BFS) in $O(V + E)$ computing guaranteed fewest-flight-segment routes.
+     - **Sorting & Searching Algorithms**: MergeSort $O(N \log N)$ vs InsertionSort $O(N^2)$, Binary Search $O(\log N)$ vs Linear Search $O(N)$.

@@ -1,5 +1,5 @@
 """
-Integration Tests for AeroSeat Intelligence API Endpoints
+Integration Tests for X Airways Intelligence API Endpoints
 """
 import pytest
 from fastapi.testclient import TestClient
@@ -180,3 +180,106 @@ def test_benchmark_endpoints():
     assert search_res.status_code == 200
     assert "linear_search" in search_res.json()
     assert "binary_search" in search_res.json()
+
+
+def test_seat_grid_endpoints():
+    res = client.get("/api/dsa/seat-grid/FL-201")
+    assert res.status_code == 200
+    data = res.json()
+    assert "metrics" in data
+    assert "matrix" in data
+    assert data["metrics"]["configured_seats"] > 0
+
+    alloc_res = client.post("/api/dsa/seat-grid/allocate", json={
+        "flight_id": "FL-201",
+        "row_number": 15,
+        "column_letter": "A",
+        "passenger_name": "Test Passenger",
+        "pnr": "EKGRID1"
+    })
+    assert alloc_res.status_code == 200
+    assert "O(1)" in alloc_res.json()["time_complexity"]
+
+def test_batch_reservations_and_seat_modification():
+    # 1. Batch Reservation for multi-passenger
+    batch_payload = {
+        "flight_id": "FL-201",
+        "items": [
+            {
+                "flight_id": "FL-201",
+                "seat_number": "21A",
+                "passenger_name": "Passenger Alpha",
+                "passenger_email": "alpha@test.com"
+            },
+            {
+                "flight_id": "FL-201",
+                "seat_number": "21B",
+                "passenger_name": "Passenger Beta",
+                "passenger_email": "beta@test.com"
+            }
+        ]
+    }
+    batch_res = client.post("/api/reservations/batch", json=batch_payload)
+    assert batch_res.status_code == 200
+    items = batch_res.json()
+    assert len(items) == 2
+    pnr_alpha = items[0]["pnr"]
+    assert items[0]["seat_number"] == "21A"
+    assert items[1]["seat_number"] == "21B"
+
+    # 2. Modify seat for Passenger Alpha from 21A to 21C
+    modify_res = client.post(f"/api/reservations/{pnr_alpha}/modify-seat", json={
+        "new_seat_number": "21C"
+    })
+    assert modify_res.status_code == 200
+    assert modify_res.json()["new_seat"] == "21C"
+    assert modify_res.json()["old_seat"] == "21A"
+
+    # Verify 21A is released back to AVAILABLE and 21C is RESERVED
+    seat_21a = client.get("/api/flights/FL-201/seats").json()
+    s21a = next(s for s in seat_21a if s["seat_number"] == "21A")
+    s21c = next(s for s in seat_21a if s["seat_number"] == "21C")
+    assert s21a["status"] == "AVAILABLE"
+    assert s21c["status"] == "RESERVED"
+
+
+def test_concurrent_seat_conflict_sequential_claim():
+    """Two sessions cannot reserve the same seat — second request must 409."""
+    seat = "22K"
+    first = client.post("/api/reservations", json={
+        "flight_id": "FL-201",
+        "seat_number": seat,
+        "passenger_name": "Session One",
+        "passenger_email": "one@test.com"
+    })
+    assert first.status_code == 200, first.text
+
+    second = client.post("/api/reservations", json={
+        "flight_id": "FL-201",
+        "seat_number": seat,
+        "passenger_name": "Session Two",
+        "passenger_email": "two@test.com"
+    })
+    assert second.status_code == 409
+    assert "already" in second.json()["detail"].lower()
+
+
+def test_batch_rejects_duplicate_seat_in_payload():
+    res = client.post("/api/reservations/batch", json={
+        "flight_id": "FL-201",
+        "items": [
+            {
+                "flight_id": "FL-201",
+                "seat_number": "23A",
+                "passenger_name": "Dup A",
+                "passenger_email": "a@test.com"
+            },
+            {
+                "flight_id": "FL-201",
+                "seat_number": "23A",
+                "passenger_name": "Dup B",
+                "passenger_email": "b@test.com"
+            }
+        ]
+    })
+    assert res.status_code == 400
