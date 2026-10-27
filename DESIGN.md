@@ -59,7 +59,7 @@ AeroSeat Intelligence adopts an **Aviation Luxury & Engineering Clarity** aesthe
     - Business: `1 - 2 - 1` (A \| E F \| K)
     - Economy: `3 - 4 - 3` (A B C \| D E F G \| H J K) (note: aviation convention skips 'I' to avoid confusion with '1').
   - Seat node: `36px x 38px` rounded pill (`border-radius: 6px`) with headrest indentation, seat number watermark, and status border.
-- **Accessibility**: Keyboard navigable via Arrow keys, `Tab`, `Space`, and `Enter`. `aria-label` exposes complete status (e.g., *"Seat 14A, Window, Economy Preferred, Available, Price $45"*).
+- **Accessibility**: Native buttons provide Tab, Space, and Enter interaction; visible text, seat-state colors, legends, hover details, and disabled occupied-seat controls communicate status. Arrow-key cabin navigation is a future enhancement, not a current claim.
 
 ### 4.2 Interactive Summary Bar (Drawer / Sticky Panel)
 - Sticky bottom or right-hand rail displaying:

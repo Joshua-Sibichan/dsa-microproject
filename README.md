@@ -36,7 +36,7 @@
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons.
 - **Backend**: Python 3.14, FastAPI, Pydantic v2, Uvicorn.
 - **Database**: SQLite (ACID transactions, WAL mode, foreign keys, unique seat constraints).
-- **Testing**: Pytest (22 unit & integration tests covering 100% of pure DSA engines and API endpoints).
+- **Testing**: Pytest (22 unit and integration tests exercising core DSA engines and API endpoints).
 
 ---
 

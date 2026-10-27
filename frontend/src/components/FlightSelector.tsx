@@ -83,7 +83,7 @@ export const FlightSelector: React.FC<FlightSelectorProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-slate-100 gap-4">
         <div>
           <span className="text-xs font-mono font-bold tracking-wider text-[#C7A66A] uppercase flex items-center gap-1.5">
-            <Plane className="w-3.5 h-3.5" /> Emirates-Inspired Global Flight Search
+            <Plane className="w-3.5 h-3.5" /> AeroSeat Global Flight Search
           </span>
           <h2 className="text-2xl font-bold text-[#10243A] tracking-tight">Find & Select Your Flight</h2>
           <p className="text-xs text-slate-500 mt-0.5">Explore scheduled wide-body flights, filter by cabin & dates, and proceed to interactive seat selection</p>

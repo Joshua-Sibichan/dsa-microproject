@@ -62,7 +62,7 @@ export const CabinMap: React.FC<CabinMapProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-slate-100 gap-4">
         <div>
           <span className="text-xs font-mono font-bold tracking-wider text-[#C7A66A] uppercase flex items-center gap-1">
-            <Users className="w-3.5 h-3.5" /> Emirates Wide-Body Cabin Deck
+            <Users className="w-3.5 h-3.5" /> AeroSeat Wide-Body Cabin Deck
           </span>
           <h2 className="text-2xl font-bold text-[#10243A]">Interactive Aircraft Seat Map</h2>
           <p className="text-xs text-slate-500 mt-0.5">Boeing 777-300ER & A380 Wide-body Fuselage (First, Business, Premium Economy & Economy)</p>

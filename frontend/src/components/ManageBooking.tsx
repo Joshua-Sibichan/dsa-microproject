@@ -146,7 +146,7 @@ export const ManageBooking: React.FC<ManageBookingProps> = ({ onReservationCance
       {/* Manage Header Card */}
       <div className="bg-[#10243A] text-white rounded-3xl p-8 shadow-xl border border-navy-800">
         <span className="text-xs font-mono font-bold tracking-widest text-[#C7A66A] uppercase flex items-center gap-1.5">
-          <Ticket className="w-3.5 h-3.5" /> Emirates-Inspired Manage Booking Portal
+          <Ticket className="w-3.5 h-3.5" /> AeroSeat Manage Booking Portal
         </span>
         <h1 className="text-3xl font-bold font-serif mt-1">Manage Your Reservation</h1>
         <p className="text-sm text-slate-300 mt-2 max-w-2xl">
@@ -342,7 +342,7 @@ export const ManageBooking: React.FC<ManageBookingProps> = ({ onReservationCance
                   EK
                 </div>
                 <div>
-                  <span className="text-[10px] font-mono tracking-widest text-[#C7A66A] uppercase">Emirates-Inspired Boarding Pass</span>
+                  <span className="text-[10px] font-mono tracking-widest text-[#C7A66A] uppercase">AeroSeat Boarding Pass</span>
                   <div className="text-lg font-bold">{reservation.passenger_name}</div>
                 </div>
               </div>

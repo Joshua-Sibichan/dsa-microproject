@@ -67,7 +67,7 @@ export const BookingSummary: React.FC<BookingSummaryProps> = ({
     <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/90 space-y-6">
       <div>
         <span className="text-xs font-mono font-bold tracking-wider text-[#C7A66A] uppercase flex items-center gap-1">
-          <Ticket className="w-3.5 h-3.5" /> Emirates-Inspired Itinerary
+          <Ticket className="w-3.5 h-3.5" /> AeroSeat Itinerary
         </span>
         <h2 className="text-xl font-bold text-[#10243A]">Booking Confirmation</h2>
         <p className="text-xs text-slate-500 mt-0.5">Review passenger allocations and fare breakdown before confirming</p>
