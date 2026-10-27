@@ -30,7 +30,10 @@ def init_db() -> None:
         destination_city TEXT NOT NULL,
         departure_time TEXT NOT NULL,
         arrival_time TEXT NOT NULL,
+        duration TEXT NOT NULL DEFAULT '7h 15m',
         aircraft_type TEXT NOT NULL,
+        base_fare REAL NOT NULL DEFAULT 450.0,
+        departure_date TEXT NOT NULL DEFAULT '2026-11-15',
         total_seats INTEGER NOT NULL,
         available_seats INTEGER NOT NULL,
         status TEXT NOT NULL DEFAULT 'ON_TIME'
@@ -80,6 +83,16 @@ def init_db() -> None:
     );
     """)
 
+    # Check and perform migrations for existing SQLite databases
+    cursor.execute("PRAGMA table_info(flights)")
+    columns = [col["name"] for col in cursor.fetchall()]
+    if "duration" not in columns:
+        cursor.execute("ALTER TABLE flights ADD COLUMN duration TEXT NOT NULL DEFAULT '7h 15m'")
+    if "base_fare" not in columns:
+        cursor.execute("ALTER TABLE flights ADD COLUMN base_fare REAL NOT NULL DEFAULT 450.0")
+    if "departure_date" not in columns:
+        cursor.execute("ALTER TABLE flights ADD COLUMN departure_date TEXT NOT NULL DEFAULT '2026-11-15'")
+
     conn.commit()
     seed_demo_data(conn)
     conn.close()
@@ -88,27 +101,32 @@ def init_db() -> None:
 def seed_demo_data(conn: sqlite3.Connection) -> None:
     cursor = conn.cursor()
 
-    # Check if flights already exist
-    cursor.execute("SELECT COUNT(*) as count FROM flights")
-    if cursor.fetchone()["count"] > 0:
-        return
-
     flights = [
-        ("FL-201", "EK-201", "DXB", "Dubai", "JFK", "New York", "08:30", "14:25", "Boeing 777-300ER", 120, 110, "ON_TIME"),
-        ("FL-001", "EK-001", "DXB", "Dubai", "LHR", "London Heathrow", "14:15", "18:40", "Airbus A380-800", 120, 108, "ON_TIME"),
-        ("FL-384", "EK-384", "DXB", "Dubai", "BKK", "Bangkok", "22:30", "07:50", "Boeing 777-300ER", 120, 115, "ON_TIME"),
-        ("FL-500", "EK-500", "DXB", "Dubai", "BOM", "Mumbai", "10:00", "14:45", "Boeing 777-300ER", 120, 112, "ON_TIME")
+        ("FL-201", "EK-201", "DXB", "Dubai", "JFK", "New York", "08:30", "14:25", "14h 25m", "Boeing 777-300ER", 920.0, "2026-11-15", 120, 110, "ON_TIME"),
+        ("FL-001", "EK-001", "DXB", "Dubai", "LHR", "London Heathrow", "14:15", "18:40", "7h 25m", "Airbus A380-800", 680.0, "2026-11-15", 120, 108, "ON_TIME"),
+        ("FL-384", "EK-384", "DXB", "Dubai", "BKK", "Bangkok", "22:30", "07:50", "6h 20m", "Boeing 777-300ER", 540.0, "2026-11-16", 120, 115, "ON_TIME"),
+        ("FL-500", "EK-500", "DXB", "Dubai", "BOM", "Mumbai", "10:00", "14:45", "3h 15m", "Boeing 777-300ER", 310.0, "2026-11-15", 120, 112, "ON_TIME"),
+        ("FL-318", "EK-318", "DXB", "Dubai", "HND", "Tokyo Haneda", "02:50", "17:35", "9h 45m", "Boeing 777-300ER", 830.0, "2026-11-16", 120, 116, "ON_TIME"),
+        ("FL-073", "EK-073", "DXB", "Dubai", "CDG", "Paris Charles de Gaulle", "08:20", "13:30", "7h 10m", "Airbus A380-800", 710.0, "2026-11-16", 120, 114, "ON_TIME"),
+        ("FL-414", "EK-414", "DXB", "Dubai", "SYD", "Sydney", "02:15", "22:05", "13h 50m", "Airbus A380-800", 1150.0, "2026-11-17", 120, 118, "ON_TIME"),
+        ("FL-354", "EK-354", "DXB", "Dubai", "SIN", "Singapore", "03:15", "14:40", "7h 25m", "Boeing 777-300ER", 490.0, "2026-11-15", 120, 113, "ON_TIME")
     ]
 
     for fl in flights:
-        cursor.execute("""
-            INSERT INTO flights (id, flight_number, origin, origin_city, destination, destination_city, departure_time, arrival_time, aircraft_type, total_seats, available_seats, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, fl)
-
-        flight_id = fl[0]
-        # Generate representative cabin seats for this flight
-        generate_cabin_seats(cursor, flight_id)
+        cursor.execute("SELECT COUNT(*) as count FROM flights WHERE id = ?", (fl[0],))
+        if cursor.fetchone()["count"] == 0:
+            cursor.execute("""
+                INSERT INTO flights (id, flight_number, origin, origin_city, destination, destination_city, departure_time, arrival_time, duration, aircraft_type, base_fare, departure_date, total_seats, available_seats, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, fl)
+            generate_cabin_seats(cursor, fl[0])
+        else:
+            # Update duration, base_fare, departure_date if missing
+            cursor.execute("""
+                UPDATE flights
+                SET duration = ?, base_fare = ?, departure_date = ?
+                WHERE id = ?
+            """, (fl[8], fl[10], fl[11], fl[0]))
 
     # Pre-seed sample reservations to populate the cabin map and BST
     sample_reservations = [
@@ -120,12 +138,13 @@ def seed_demo_data(conn: sqlite3.Connection) -> None:
     ]
 
     for pnr, fl_id, s_num, name, email, prefs in sample_reservations:
-        # Mark seat as RESERVED
-        cursor.execute("UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ?", (fl_id, s_num))
-        cursor.execute("""
-            INSERT INTO reservations (pnr, flight_id, seat_number, passenger_name, passenger_email, preferences_json, status)
-            VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMED')
-        """, (pnr, fl_id, s_num, name, email, prefs))
+        cursor.execute("SELECT COUNT(*) as count FROM reservations WHERE pnr = ?", (pnr,))
+        if cursor.fetchone()["count"] == 0:
+            cursor.execute("UPDATE seats SET status = 'RESERVED' WHERE flight_id = ? AND seat_number = ?", (fl_id, s_num))
+            cursor.execute("""
+                INSERT INTO reservations (pnr, flight_id, seat_number, passenger_name, passenger_email, preferences_json, status)
+                VALUES (?, ?, ?, ?, ?, ?, 'CONFIRMED')
+            """, (pnr, fl_id, s_num, name, email, prefs))
 
     # Update available counts
     cursor.execute("""
@@ -139,7 +158,7 @@ def seed_demo_data(conn: sqlite3.Connection) -> None:
 
 def generate_cabin_seats(cursor: sqlite3.Cursor, flight_id: str) -> None:
     """
-    Constructs an aviation-accurate Boeing 777 cabin layout:
+    Constructs an aviation-accurate Boeing 777 / A380 cabin layout:
     - First Class: Rows 1-2 (1-2-1 layout: A, E, F, K)
     - Business Class: Rows 6-8 (1-2-1 layout: A, E, F, K)
     - Premium Economy: Rows 12-14 (2-4-2 layout: A, B, D, E, F, G, J, K)
@@ -156,7 +175,7 @@ def generate_cabin_seats(cursor: sqlite3.Cursor, flight_id: str) -> None:
             is_win = col in ["A", "K"]
             is_ais = True
             cursor.execute("""
-                INSERT INTO seats (id, flight_id, seat_number, cabin_class, category, row_number, column_letter, is_window, is_aisle, is_exit_row, has_bassinet, pitch_inches, price, status)
+                INSERT OR IGNORE INTO seats (id, flight_id, seat_number, cabin_class, category, row_number, column_letter, is_window, is_aisle, is_exit_row, has_bassinet, pitch_inches, price, status)
                 VALUES (?, ?, ?, 'FIRST', 'REGULAR', ?, ?, ?, ?, 0, ?, 78, 2500.0, 'AVAILABLE')
             """, (f"{flight_id}_{seat_num}", flight_id, seat_num, r, col, is_win, is_ais, 1 if (r == 1 and col in ["E", "F"]) else 0))
 
@@ -167,7 +186,7 @@ def generate_cabin_seats(cursor: sqlite3.Cursor, flight_id: str) -> None:
             is_win = col in ["A", "K"]
             is_ais = True
             cursor.execute("""
-                INSERT INTO seats (id, flight_id, seat_number, cabin_class, category, row_number, column_letter, is_window, is_aisle, is_exit_row, has_bassinet, pitch_inches, price, status)
+                INSERT OR IGNORE INTO seats (id, flight_id, seat_number, cabin_class, category, row_number, column_letter, is_window, is_aisle, is_exit_row, has_bassinet, pitch_inches, price, status)
                 VALUES (?, ?, ?, 'BUSINESS', 'REGULAR', ?, ?, ?, ?, 0, ?, 60, 1200.0, 'AVAILABLE')
             """, (f"{flight_id}_{seat_num}", flight_id, seat_num, r, col, is_win, is_ais, 1 if (r == 6 and col in ["E", "F"]) else 0))
 
@@ -179,7 +198,7 @@ def generate_cabin_seats(cursor: sqlite3.Cursor, flight_id: str) -> None:
             is_ais = col in ["B", "D", "G", "J"]
             cat = "PREFERRED" if r == 12 else "REGULAR"
             cursor.execute("""
-                INSERT INTO seats (id, flight_id, seat_number, cabin_class, category, row_number, column_letter, is_window, is_aisle, is_exit_row, has_bassinet, pitch_inches, price, status)
+                INSERT OR IGNORE INTO seats (id, flight_id, seat_number, cabin_class, category, row_number, column_letter, is_window, is_aisle, is_exit_row, has_bassinet, pitch_inches, price, status)
                 VALUES (?, ?, ?, 'PREMIUM_ECONOMY', ?, ?, ?, ?, ?, 0, ?, 38, 450.0, 'AVAILABLE')
             """, (f"{flight_id}_{seat_num}", flight_id, seat_num, cat, r, col, is_win, is_ais, 1 if r == 12 and col in ["D", "G"] else 0))
 
@@ -206,6 +225,6 @@ def generate_cabin_seats(cursor: sqlite3.Cursor, flight_id: str) -> None:
                 price = 95.0
 
             cursor.execute("""
-                INSERT INTO seats (id, flight_id, seat_number, cabin_class, category, row_number, column_letter, is_window, is_aisle, is_exit_row, has_bassinet, pitch_inches, price, status)
+                INSERT OR IGNORE INTO seats (id, flight_id, seat_number, cabin_class, category, row_number, column_letter, is_window, is_aisle, is_exit_row, has_bassinet, pitch_inches, price, status)
                 VALUES (?, ?, ?, 'ECONOMY', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE')
             """, (f"{flight_id}_{seat_num}", flight_id, seat_num, category, r, col, is_win, is_ais, is_exit, has_bas, pitch, price))

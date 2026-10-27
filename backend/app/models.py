@@ -13,7 +13,10 @@ class FlightModel(BaseModel):
     destination_city: str
     departure_time: str
     arrival_time: str
+    duration: str = "7h 15m"
     aircraft_type: str
+    base_fare: float = 450.0
+    departure_date: str = "2026-11-15"
     total_seats: int
     available_seats: int
     status: str
@@ -56,13 +59,25 @@ class ReservationCreateRequest(BaseModel):
     passenger_email: str
     preferences: Optional[PassengerPreferences] = None
 
+class MultiPassengerReservationRequest(BaseModel):
+    flight_id: str
+    items: List[ReservationCreateRequest]
+
+class ModifySeatRequest(BaseModel):
+    new_seat_number: str
+
 class ReservationResponse(BaseModel):
     pnr: str
     flight_id: str
     flight_number: Optional[str] = None
     origin: Optional[str] = None
+    origin_city: Optional[str] = None
     destination: Optional[str] = None
+    destination_city: Optional[str] = None
     departure_time: Optional[str] = None
+    arrival_time: Optional[str] = None
+    duration: Optional[str] = None
+    aircraft_type: Optional[str] = None
     seat_number: str
     cabin_class: Optional[str] = None
     passenger_name: str
@@ -98,4 +113,4 @@ class GraphRouteRequest(BaseModel):
     destination: str
 
 class BenchmarkRequest(BaseModel):
-    dataset_size: int = 200
+    dataset_size: int = 100

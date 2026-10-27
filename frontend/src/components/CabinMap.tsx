@@ -1,13 +1,18 @@
 import React, { useState } from 'react';
-import { Seat, RecommendedSeat } from '../types';
-import { Sparkles, Info, Users, Baby, Accessibility, ShieldAlert } from 'lucide-react';
+import { Seat, RecommendedSeat, PassengerBookingItem } from '../types';
+import { Sparkles, Info, Users, Baby, Accessibility, ShieldAlert, Check, UserCheck } from 'lucide-react';
 
 interface CabinMapProps {
   seats: Seat[];
-  selectedSeat: Seat | null;
+  selectedSeat: Seat | null; // For single passenger backward compat
   onSelectSeat: (seat: Seat) => void;
   recommendedSeat: RecommendedSeat | null;
   highlightedGroupSeats: string[];
+  // Multi-passenger props
+  passengers?: PassengerBookingItem[];
+  activePassengerIndex?: number;
+  onSelectActivePassenger?: (index: number) => void;
+  selectedSeatsByPassenger?: Record<number, Seat>;
 }
 
 export const CabinMap: React.FC<CabinMapProps> = ({
@@ -15,7 +20,11 @@ export const CabinMap: React.FC<CabinMapProps> = ({
   selectedSeat,
   onSelectSeat,
   recommendedSeat,
-  highlightedGroupSeats
+  highlightedGroupSeats,
+  passengers = [],
+  activePassengerIndex = 0,
+  onSelectActivePassenger,
+  selectedSeatsByPassenger = {}
 }) => {
   const [hoveredSeat, setHoveredSeat] = useState<Seat | null>(null);
   const [activeCabinFilter, setActiveCabinFilter] = useState<string>('ALL');
@@ -38,24 +47,34 @@ export const CabinMap: React.FC<CabinMapProps> = ({
     .map(Number)
     .sort((a, b) => a - b);
 
+  // Map of seat_number -> passenger index
+  const seatAssignedToPassengerMap: Record<string, number> = {};
+  Object.entries(selectedSeatsByPassenger).forEach(([pIdx, s]) => {
+    if (s) {
+      seatAssignedToPassengerMap[s.seat_number] = Number(pIdx);
+    }
+  });
+
   return (
-    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/90 relative">
+    <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/90 relative space-y-6">
       
       {/* Header and Cabin Switcher */}
       <div className="flex flex-col md:flex-row md:items-center justify-between pb-6 border-b border-slate-100 gap-4">
         <div>
-          <span className="text-xs font-mono font-bold tracking-wider text-[#C7A66A] uppercase">Cabin Architecture</span>
+          <span className="text-xs font-mono font-bold tracking-wider text-[#C7A66A] uppercase flex items-center gap-1">
+            <Users className="w-3.5 h-3.5" /> Emirates Wide-Body Cabin Deck
+          </span>
           <h2 className="text-2xl font-bold text-[#10243A]">Interactive Aircraft Seat Map</h2>
-          <p className="text-xs text-slate-500 mt-0.5">Boeing 777-300ER Wide-body Configuration (3-Class Layout)</p>
+          <p className="text-xs text-slate-500 mt-0.5">Boeing 777-300ER & A380 Wide-body Fuselage (First, Business, Premium Economy & Economy)</p>
         </div>
 
         {/* Cabin Filter Tabs */}
-        <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-medium space-x-1">
+        <div className="flex bg-slate-100 p-1 rounded-xl text-xs font-medium space-x-1 overflow-x-auto">
           {['ALL', 'FIRST', 'BUSINESS', 'PREMIUM_ECONOMY', 'ECONOMY'].map((filter) => (
             <button
               key={filter}
               onClick={() => setActiveCabinFilter(filter)}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
+              className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap ${
                 activeCabinFilter === filter
                   ? 'bg-white text-[#10243A] font-bold shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
@@ -67,9 +86,62 @@ export const CabinMap: React.FC<CabinMapProps> = ({
         </div>
       </div>
 
+      {/* Multi-Passenger Assignment Bar (Feature 2 Requirement) */}
+      {passengers.length > 0 && (
+        <div className="bg-[#10243A] text-white p-4 rounded-2xl shadow-md border border-navy-800">
+          <div className="flex items-center justify-between mb-2.5">
+            <span className="text-xs font-mono text-[#C7A66A] font-bold uppercase flex items-center gap-1.5">
+              <UserCheck className="w-3.5 h-3.5 text-[#C7A66A]" /> Multi-Passenger Seat Assignment
+            </span>
+            <span className="text-[11px] text-slate-300">
+              Select a passenger, then click any available seat to assign
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {passengers.map((p, idx) => {
+              const isActive = activePassengerIndex === idx;
+              const assignedSeat = selectedSeatsByPassenger[idx];
+              return (
+                <button
+                  key={`passenger-tab-${idx}`}
+                  type="button"
+                  onClick={() => onSelectActivePassenger && onSelectActivePassenger(idx)}
+                  className={`p-2.5 rounded-xl border transition-all text-left flex flex-col justify-between ${
+                    isActive
+                      ? 'bg-blue-600/90 border-blue-400 text-white ring-2 ring-blue-400/50 shadow'
+                      : 'bg-[#18304D] border-slate-700 text-slate-300 hover:bg-[#1E3A5F]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between w-full">
+                    <span className="text-[11px] font-bold truncate">
+                      P{idx + 1}: {p.name || `Traveler ${idx + 1}`}
+                    </span>
+                    {assignedSeat && (
+                      <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">
+                        ✓
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-1 flex items-center justify-between text-xs">
+                    <span className="text-[10px] text-slate-300">Seat:</span>
+                    <span className={`font-mono font-bold px-1.5 py-0.5 rounded ${
+                      assignedSeat ? 'bg-white text-slate-900' : 'bg-navy-900/80 text-amber-300'
+                    }`}>
+                      {assignedSeat ? assignedSeat.seat_number : 'Select'}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Legend Banner */}
-      <div className="my-6 p-4 rounded-2xl bg-slate-50 border border-slate-200/70 flex flex-wrap items-center justify-between gap-4 text-xs">
-        <div className="flex items-center space-x-6 flex-wrap gap-y-2">
+      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div className="flex items-center space-x-5 flex-wrap gap-y-2">
           <div className="flex items-center space-x-2">
             <div className="w-5 h-5 rounded-md bg-[#168C78] border border-teal-600/40 flex items-center justify-center text-[10px] text-white font-mono font-bold">12</div>
             <span className="text-slate-700 font-medium">Available</span>
@@ -87,12 +159,12 @@ export const CabinMap: React.FC<CabinMapProps> = ({
 
           <div className="flex items-center space-x-2">
             <div className="w-5 h-5 rounded-md bg-[#168C78] ring-2 ring-amber-400 flex items-center justify-center text-[10px] text-white">⭐</div>
-            <span className="text-slate-700 font-medium">Extra Legroom / Preferred</span>
+            <span className="text-slate-700 font-medium">Extra Legroom / Exit Row</span>
           </div>
 
           <div className="flex items-center space-x-2">
             <div className="w-5 h-5 rounded-md bg-[#168C78] ring-2 ring-purple-500 pulse-recommended flex items-center justify-center text-[10px] text-white font-bold">AI</div>
-            <span className="text-purple-700 font-bold">Recommended Seat</span>
+            <span className="text-purple-700 font-bold">AI Recommended</span>
           </div>
 
           {highlightedGroupSeats.length > 0 && (
@@ -105,7 +177,7 @@ export const CabinMap: React.FC<CabinMapProps> = ({
 
         <div className="text-[11px] text-slate-500 flex items-center">
           <Info className="w-3.5 h-3.5 mr-1 text-[#C7A66A]" />
-          <span>Click any available seat to reserve or compare</span>
+          <span>Click any seat to assign to the active passenger</span>
         </div>
       </div>
 
@@ -116,8 +188,8 @@ export const CabinMap: React.FC<CabinMapProps> = ({
           {/* Aircraft Nose Graphic */}
           <div className="w-full flex justify-center mb-6">
             <div className="relative">
-              <div className="w-32 h-16 bg-gradient-to-t from-slate-200 to-slate-100 rounded-t-full border-t-2 border-x-2 border-slate-300 flex items-center justify-center">
-                <span className="text-[10px] font-mono tracking-widest text-slate-500 font-bold uppercase">Cockpit / Bow</span>
+              <div className="w-36 h-16 bg-gradient-to-t from-slate-200 to-slate-100 rounded-t-full border-t-2 border-x-2 border-slate-300 flex items-center justify-center shadow-inner">
+                <span className="text-[10px] font-mono tracking-widest text-slate-600 font-bold uppercase">Cockpit / Bow</span>
               </div>
             </div>
           </div>
@@ -151,7 +223,7 @@ export const CabinMap: React.FC<CabinMapProps> = ({
                         {cabin === 'FIRST' && 'Private Suites 1-2-1'}
                         {cabin === 'BUSINESS' && 'Flatbed Direct Aisle Access 1-2-1'}
                         {cabin === 'PREMIUM_ECONOMY' && 'Spacious 2-4-2 Configuration'}
-                        {cabin === 'ECONOMY' && 'Standard 3-4-3 Configuration'}
+                        {cabin === 'ECONOMY' && 'Standard 3-4-3 Wide-body'}
                       </span>
                     </div>
                   )}
@@ -159,7 +231,7 @@ export const CabinMap: React.FC<CabinMapProps> = ({
                   {isExitRow && (
                     <div className="my-2 py-1 px-3 bg-amber-50 border border-amber-200 rounded text-center text-[10px] font-bold text-amber-800 flex items-center justify-center space-x-1.5">
                       <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-                      <span>EMERGENCY EXIT ROW (Row {rowNum}) — Extra Legroom & Safety Regulatory Requirements</span>
+                      <span>EMERGENCY EXIT ROW (Row {rowNum}) — Extra Legroom & Safety Fitness Requirements</span>
                     </div>
                   )}
 
@@ -276,8 +348,17 @@ export const CabinMap: React.FC<CabinMapProps> = ({
   );
 
   function renderSeat(seat: Seat) {
-    const isSelected = selectedSeat?.seat_number === seat.seat_number;
     const isOccupied = seat.status === 'RESERVED' || seat.status === 'BLOCKED';
+    
+    // Check if assigned to any passenger in multi-passenger mode
+    const assignedPassengerIdx = seatAssignedToPassengerMap[seat.seat_number];
+    const isSelectedByAny = assignedPassengerIdx !== undefined;
+    const isSelectedByActive = assignedPassengerIdx === activePassengerIndex;
+
+    // Single passenger fallback
+    const isSingleSelected = selectedSeat?.seat_number === seat.seat_number;
+    const isSelected = isSelectedByAny || isSingleSelected;
+
     const isRecommended = recommendedSeat?.seat_number === seat.seat_number;
     const isGroupMatch = highlightedGroupSeats.includes(seat.seat_number);
 
@@ -288,7 +369,9 @@ export const CabinMap: React.FC<CabinMapProps> = ({
       baseBg = 'bg-[#94A3B8] opacity-50 cursor-not-allowed line-through text-slate-100';
     } else if (isSelected) {
       baseBg = 'bg-[#2563EB] text-white shadow-lg';
-      ringClass = 'ring-4 ring-blue-400/80 scale-105';
+      ringClass = isSelectedByActive
+        ? 'ring-4 ring-blue-400 scale-105'
+        : 'ring-2 ring-blue-300';
     } else if (isRecommended) {
       baseBg = 'bg-[#168C78] text-white font-bold';
       ringClass = 'ring-4 ring-[#C7A66A] pulse-recommended scale-105';
@@ -310,6 +393,14 @@ export const CabinMap: React.FC<CabinMapProps> = ({
         className={`w-9 h-10 rounded-lg text-xs font-mono font-semibold flex flex-col items-center justify-center transition-all relative ${baseBg} ${ringClass}`}
       >
         <span className="text-[11px] leading-none">{seat.seat_number}</span>
+        
+        {/* Passenger indicator badge */}
+        {assignedPassengerIdx !== undefined && (
+          <span className="text-[8px] font-bold bg-white text-blue-700 rounded-full px-1 absolute -top-1.5 -right-1.5 shadow">
+            P{assignedPassengerIdx + 1}
+          </span>
+        )}
+
         {seat.has_bassinet && <span className="text-[8px] absolute top-0.5 right-0.5">🍼</span>}
         {seat.category === 'EXTRA_LEGROOM' && !isOccupied && !isSelected && (
           <span className="w-1.5 h-1.5 rounded-full bg-amber-300 absolute bottom-1"></span>

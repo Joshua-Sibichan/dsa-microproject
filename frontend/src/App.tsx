@@ -9,6 +9,7 @@ import { UndoFloatingBar } from './components/UndoFloatingBar';
 import { AlgorithmArena } from './components/AlgorithmArena';
 
 // DSA Hub Components
+import { SeatGridVisualizer } from './components/DsaHub/SeatGridVisualizer';
 import { QueueVisualizer } from './components/DsaHub/QueueVisualizer';
 import { StackVisualizer } from './components/DsaHub/StackVisualizer';
 import { BstVisualizer } from './components/DsaHub/BstVisualizer';
@@ -23,6 +24,7 @@ import {
   requestRecommendation,
   requestGroupSeating,
   createReservation,
+  createBatchReservations,
   triggerUndo,
   fetchUndoHistory
 } from './api';
@@ -31,6 +33,7 @@ import {
   Flight,
   Seat,
   PassengerProfile,
+  PassengerBookingItem,
   RecommendationResult,
   GroupSeatingResult,
   Reservation,
@@ -39,19 +42,32 @@ import {
 
 import { AlertCircle, CheckCircle2, Layers } from 'lucide-react';
 
+const DEFAULT_PASSENGERS: PassengerBookingItem[] = [
+  { passengerIndex: 0, name: 'Eleanor Vance', email: 'eleanor@aero.org', seat: null },
+  { passengerIndex: 1, name: 'Lord Arthur Sterling', email: 'sterling@aero.org', seat: null },
+  { passengerIndex: 2, name: 'Dr. Maya Lin', email: 'maya@lin.org', seat: null },
+  { passengerIndex: 3, name: 'Carlos Mendez', email: 'carlos@tech.io', seat: null },
+];
+
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'book' | 'manage' | 'dsa' | 'arena'>('book');
   const [dsaSubTab, setDsaSubTab] = useState<
-    'queue' | 'stack' | 'bst' | 'graph' | 'search_sort' | 'comparison' | 'matrix'
-  >('queue');
+    'seat_grid' | 'queue' | 'stack' | 'bst' | 'graph' | 'search_sort' | 'comparison' | 'matrix'
+  >('seat_grid');
 
   // Flight & Seat State
   const [flights, setFlights] = useState<Flight[]>([]);
   const [selectedFlight, setSelectedFlight] = useState<Flight | null>(null);
   const [seats, setSeats] = useState<Seat[]>([]);
-  const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null);
 
-  // Passenger & Recommendation State
+  // Multi-Passenger State (Features 1 & 2)
+  const [passengerCount, setPassengerCount] = useState<number>(1);
+  const [passengers, setPassengers] = useState<PassengerBookingItem[]>(DEFAULT_PASSENGERS.slice(0, 1));
+  const [activePassengerIndex, setActivePassengerIndex] = useState<number>(0);
+  const [selectedSeatsByPassenger, setSelectedSeatsByPassenger] = useState<Record<number, Seat>>({});
+  const [selectedCabinClass, setSelectedCabinClass] = useState<string>('ECONOMY');
+
+  // Passenger Preference & Recommendation State
   const [passenger, setPassenger] = useState<PassengerProfile>({
     name: 'Eleanor Vance',
     email: 'eleanor@aero.org',
@@ -70,7 +86,7 @@ export const App: React.FC = () => {
   const [recommendation, setRecommendation] = useState<RecommendationResult | null>(null);
   const [groupResult, setGroupResult] = useState<GroupSeatingResult | null>(null);
   const [highlightedGroupSeats, setHighlightedGroupSeats] = useState<string[]>([]);
-  const [latestReservation, setLatestReservation] = useState<Reservation | null>(null);
+  const [latestReservations, setLatestReservations] = useState<Reservation[]>([]);
 
   // Undo Stack State
   const [undoStackTop, setUndoStackTop] = useState<UndoAction | null>(null);
@@ -81,17 +97,29 @@ export const App: React.FC = () => {
   const [loadingRec, setLoadingRec] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // 1. Initial Data Load
+  // Sync passengers array when passengerCount changes
+  useEffect(() => {
+    const updated = DEFAULT_PASSENGERS.slice(0, passengerCount).map((p, idx) => ({
+      ...p,
+      seat: selectedSeatsByPassenger[idx] || null
+    }));
+    setPassengers(updated);
+    if (activePassengerIndex >= passengerCount) {
+      setActivePassengerIndex(0);
+    }
+  }, [passengerCount, selectedSeatsByPassenger]);
+
+  // Initial Data Load
   useEffect(() => {
     loadFlights();
     loadUndoState();
   }, []);
 
-  const loadFlights = async () => {
+  const loadFlights = async (origin?: string, destination?: string) => {
     try {
-      const flList = await fetchFlights();
+      const flList = await fetchFlights(origin, destination);
       setFlights(flList);
-      if (flList.length > 0) {
+      if (flList.length > 0 && !selectedFlight) {
         setSelectedFlight(flList[0]);
         loadSeatsForFlight(flList[0].id);
       }
@@ -104,7 +132,7 @@ export const App: React.FC = () => {
     try {
       const stList = await fetchFlightSeats(flightId);
       setSeats(stList);
-      setSelectedSeat(null);
+      setSelectedSeatsByPassenger({});
       setRecommendation(null);
       setGroupResult(null);
       setHighlightedGroupSeats([]);
@@ -128,35 +156,69 @@ export const App: React.FC = () => {
     setTimeout(() => setToastMessage(null), 5000);
   };
 
-  // 2. Flight Selection
+  // 1. Flight Selection
   const handleSelectFlight = (flight: Flight) => {
     setSelectedFlight(flight);
     loadSeatsForFlight(flight.id);
+    showToast('success', `Selected Flight ${flight.flight_number} (${flight.origin} → ${flight.destination})`);
   };
 
-  // 3. Seat Selection
+  // 2. Interactive Seat Selection with Multi-Passenger Support (Feature 2)
   const handleSelectSeat = (seat: Seat) => {
     if (seat.status !== 'AVAILABLE') {
-      showToast('error', `Seat ${seat.seat_number} is already occupied.`);
+      showToast('error', `Seat ${seat.seat_number} is already occupied. Join waitlist via Manage Booking!`);
       return;
     }
 
-    if (selectedSeat?.seat_number === seat.seat_number) {
-      setSelectedSeat(null);
-    } else {
-      setSelectedSeat(seat);
+    // Check if this seat is already selected by current active passenger -> Deselect
+    const currentSeatForActive = selectedSeatsByPassenger[activePassengerIndex];
+    if (currentSeatForActive?.seat_number === seat.seat_number) {
+      const nextSeats = { ...selectedSeatsByPassenger };
+      delete nextSeats[activePassengerIndex];
+      setSelectedSeatsByPassenger(nextSeats);
+      return;
+    }
+
+    // Check if this seat is already selected by another passenger in this booking -> Prevent duplicate
+    const alreadyOwnerIdx = Object.entries(selectedSeatsByPassenger).find(
+      ([idxStr, s]) => s.seat_number === seat.seat_number && Number(idxStr) !== activePassengerIndex
+    );
+
+    if (alreadyOwnerIdx) {
+      const otherIdx = Number(alreadyOwnerIdx[0]);
+      showToast('error', `Seat ${seat.seat_number} is already selected by Passenger ${otherIdx + 1}.`);
+      return;
+    }
+
+    // Assign seat to active passenger
+    const nextSeats = {
+      ...selectedSeatsByPassenger,
+      [activePassengerIndex]: seat
+    };
+    setSelectedSeatsByPassenger(nextSeats);
+
+    // Auto-advance to next unassigned passenger for smooth UX
+    for (let i = 0; i < passengerCount; i++) {
+      if (!nextSeats[i]) {
+        setActivePassengerIndex(i);
+        break;
+      }
     }
   };
 
-  // 4. Trigger AI Seat Recommendation (CO3 MergeSort)
+  // 3. Trigger AI Seat Recommendation (CO3 MergeSort)
   const handleGetRecommendation = async () => {
     if (!selectedFlight) return;
     setLoadingRec(true);
     try {
-      const res = await requestRecommendation(selectedFlight.id, passenger);
+      const res = await requestRecommendation(selectedFlight.id, passenger, selectedCabinClass);
       setRecommendation(res);
       if (res.recommended_seat) {
-        setSelectedSeat(res.recommended_seat);
+        // Assign to currently active passenger
+        setSelectedSeatsByPassenger((prev) => ({
+          ...prev,
+          [activePassengerIndex]: res.recommended_seat!
+        }));
         showToast('success', res.message);
       } else {
         showToast('error', res.message);
@@ -168,14 +230,21 @@ export const App: React.FC = () => {
     }
   };
 
-  // 5. Trigger Group Seating Search
+  // 4. Trigger Group Seating Search
   const handleFindGroupSeats = async (size: number) => {
     if (!selectedFlight) return;
     try {
-      const res = await requestGroupSeating(selectedFlight.id, size);
+      const res = await requestGroupSeating(selectedFlight.id, size, selectedCabinClass);
       setGroupResult(res);
-      if (res.found && res.seat_numbers) {
+      if (res.found && res.seat_numbers && res.seats) {
         setHighlightedGroupSeats(res.seat_numbers);
+        
+        // Auto-assign contiguous block to passengers up to count
+        const newSeats: Record<number, Seat> = { ...selectedSeatsByPassenger };
+        res.seats.slice(0, passengerCount).forEach((st, idx) => {
+          newSeats[idx] = st;
+        });
+        setSelectedSeatsByPassenger(newSeats);
         showToast('success', res.message);
       } else {
         setHighlightedGroupSeats([]);
@@ -186,22 +255,38 @@ export const App: React.FC = () => {
     }
   };
 
-  // 6. Confirm Booking Creation
+  // 5. Confirm Multi-Passenger or Single Reservation
   const handleConfirmBooking = async () => {
-    if (!selectedFlight || !selectedSeat) return;
+    if (!selectedFlight) return;
+
+    // Check that all passengers have assigned seats
+    for (let i = 0; i < passengerCount; i++) {
+      if (!selectedSeatsByPassenger[i]) {
+        showToast('error', `Please assign a seat for Passenger ${i + 1}`);
+        setActivePassengerIndex(i);
+        return;
+      }
+    }
+
     setLoading(true);
 
     try {
-      const res = await createReservation({
+      const items = passengers.map((p, idx) => ({
         flight_id: selectedFlight.id,
-        seat_number: selectedSeat.seat_number,
-        passenger_name: passenger.name || 'Anonymous Traveler',
-        passenger_email: passenger.email || 'passenger@aero.org',
+        seat_number: selectedSeatsByPassenger[idx].seat_number,
+        passenger_name: p.name || `Traveler ${idx + 1}`,
+        passenger_email: p.email || 'traveler@aero.org',
         preferences: passenger.preferences
+      }));
+
+      const resList = await createBatchReservations({
+        flight_id: selectedFlight.id,
+        items
       });
 
-      setLatestReservation(res);
-      showToast('success', `Reservation confirmed! PNR reference: ${res.pnr}`);
+      setLatestReservations(resList);
+      const pnrs = resList.map((r) => r.pnr).join(', ');
+      showToast('success', `Reservation confirmed! Reference(s): ${pnrs}`);
 
       // Refresh seats and undo state
       await loadSeatsForFlight(selectedFlight.id);
@@ -214,7 +299,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // 7. Trigger Undo
+  // 6. Trigger Undo
   const handleTriggerUndo = async () => {
     setLoading(true);
     try {
@@ -268,24 +353,33 @@ export const App: React.FC = () => {
         {/* VIEW 1: SEAT SELECTION & RESERVATION */}
         {activeTab === 'book' && (
           <div className="space-y-8 animate-in fade-in duration-200">
-            {/* Flight Selector */}
+            {/* Flight Search & Selector (Feature 1) */}
             <FlightSelector
               flights={flights}
               selectedFlight={selectedFlight}
               onSelectFlight={handleSelectFlight}
+              passengerCount={passengerCount}
+              setPassengerCount={setPassengerCount}
+              selectedCabinClass={selectedCabinClass}
+              setSelectedCabinClass={setSelectedCabinClass}
+              onSearch={(orig, dest) => loadFlights(orig, dest)}
             />
 
-            {/* Split Grid: Cabin Map + Right Sidebars */}
+            {/* Split Grid: Cabin Map + Right Sidebars (Feature 2) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
               
               {/* Cabin Map Deck (7 Cols on large screens) */}
               <div className="lg:col-span-7">
                 <CabinMap
                   seats={seats}
-                  selectedSeat={selectedSeat}
+                  selectedSeat={selectedSeatsByPassenger[activePassengerIndex] || null}
                   onSelectSeat={handleSelectSeat}
                   recommendedSeat={recommendation?.recommended_seat || null}
                   highlightedGroupSeats={highlightedGroupSeats}
+                  passengers={passengers}
+                  activePassengerIndex={activePassengerIndex}
+                  onSelectActivePassenger={setActivePassengerIndex}
+                  selectedSeatsByPassenger={selectedSeatsByPassenger}
                 />
               </div>
 
@@ -303,11 +397,14 @@ export const App: React.FC = () => {
 
                 <BookingSummary
                   selectedFlight={selectedFlight}
-                  selectedSeat={selectedSeat}
+                  selectedSeat={selectedSeatsByPassenger[0] || null}
                   passenger={passenger}
+                  passengers={passengers}
+                  selectedSeatsByPassenger={selectedSeatsByPassenger}
+                  selectedCabinClass={selectedCabinClass}
                   onConfirmBooking={handleConfirmBooking}
                   loading={loading}
-                  latestReservation={latestReservation}
+                  latestReservations={latestReservations}
                 />
               </div>
 
@@ -315,7 +412,7 @@ export const App: React.FC = () => {
           </div>
         )}
 
-        {/* VIEW 2: MANAGE BOOKING */}
+        {/* VIEW 2: MANAGE BOOKING & WAITLIST (Feature 4) */}
         {activeTab === 'manage' && (
           <ManageBooking
             onReservationCancelled={async () => {
@@ -328,7 +425,7 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* VIEW 3: DSA HUB */}
+        {/* VIEW 3: DSA HUB (Features 3 & 4) */}
         {activeTab === 'dsa' && (
           <div className="space-y-8 animate-in fade-in duration-200">
             
@@ -345,6 +442,7 @@ export const App: React.FC = () => {
               {/* Subtabs */}
               <div className="flex flex-wrap gap-2 mt-6 pt-6 border-t border-navy-800">
                 {[
+                  { id: 'seat_grid', label: '0. 2D Seat Matrix', badge: 'CO2' },
                   { id: 'queue', label: '1. Queue (Waitlist)', badge: 'CO1' },
                   { id: 'stack', label: '2. Stack (Undo)', badge: 'CO1' },
                   { id: 'bst', label: '3. BST (PNR Index)', badge: 'CO4' },
@@ -370,6 +468,7 @@ export const App: React.FC = () => {
             </div>
 
             {/* Subtab Body */}
+            {dsaSubTab === 'seat_grid' && <SeatGridVisualizer />}
             {dsaSubTab === 'queue' && <QueueVisualizer />}
             {dsaSubTab === 'stack' && <StackVisualizer />}
             {dsaSubTab === 'bst' && <BstVisualizer />}
@@ -409,4 +508,5 @@ export const App: React.FC = () => {
     </div>
   );
 };
+
 export default App;

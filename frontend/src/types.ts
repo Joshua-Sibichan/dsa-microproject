@@ -7,7 +7,10 @@ export interface Flight {
   destination_city: string;
   departure_time: string;
   arrival_time: string;
+  duration: string;
   aircraft_type: string;
+  base_fare: number;
+  departure_date: string;
   total_seats: number;
   available_seats: number;
   status: string;
@@ -47,6 +50,13 @@ export interface PassengerProfile {
   preferences: PassengerPreferences;
 }
 
+export interface PassengerBookingItem {
+  passengerIndex: number;
+  name: string;
+  email: string;
+  seat: Seat | null;
+}
+
 export interface Reservation {
   pnr: string;
   flight_id: string;
@@ -57,6 +67,7 @@ export interface Reservation {
   destination_city?: string;
   departure_time?: string;
   arrival_time?: string;
+  duration?: string;
   aircraft_type?: string;
   seat_number: string;
   cabin_class?: string;
@@ -125,6 +136,8 @@ export interface UndoAction {
   pnr?: string;
   flight_id?: string;
   seat_number?: string;
+  old_seat?: string;
+  new_seat?: string;
   passenger_name?: string;
   description: string;
   timestamp: number;
@@ -197,4 +210,24 @@ export interface GraphRouteResult {
   algorithm: string;
   optimality_guarantee: string;
   message?: string;
+}
+
+export interface SeatGridMetrics {
+  matrix_dimensions: string;
+  total_matrix_cells: number;
+  configured_seats: number;
+  occupied_seats: number;
+  available_seats: number;
+  occupancy_rate_percent: number;
+  theoretical_time_complexity: string;
+  memory_layout: string;
+}
+
+export interface SeatGridResponse {
+  flight_id: string;
+  metrics: SeatGridMetrics;
+  columns: string[];
+  min_row: number;
+  max_row: number;
+  matrix: (Seat | null)[][];
 }
